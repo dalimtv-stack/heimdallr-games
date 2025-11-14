@@ -26,42 +26,30 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    $('h3').each((i, h3El) => {
-      const idText = $(h3El).text().trim();
-      let id = '';
-      let title = '';
+    // Cada juego está en <article class="post">
+    $('article.post').each((i, el) => {
+      const linkEl = $(el).find('h1.entry-title a').first();
+      if (!linkEl.length) return;
 
-      // Main page: "### #5236 Updated Title"
-      const mainMatch = idText.match(/^###\s*#(\d+)\s*(Updated\s+)?(.+)$/);
-      if (mainMatch) {
-        id = mainMatch[1];
-        title = mainMatch[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
-      } 
-      // Search page: "#5236"
-      else {
-        const searchMatch = idText.match(/^#(\d+)$/);
-        if (searchMatch) {
-          id = searchMatch[1];
-          const h1El = $(h3El).next('h1').first();
-          if (h1El.length) {
-            title = h1El.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
-          }
-        }
-      }
+      const postUrl = linkEl.attr('href');
+      const title = linkEl.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
 
-      if (!id || !title) return;
+      // ID desde # en URL: /.../#5236
+      const idMatch = postUrl.match(/#(\d+)$/);
+      const id = idMatch ? idMatch[1] : String(i + 1);
 
-      // Cover: riotpixels link + /cover.jpg
-      const riotLink = $(h3El).nextAll('a[href*="riotpixels.com"]').first();
+      // Cover: img dentro de a[href*="riotpixels"]
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
-      if (riotLink.length) {
-        const link = riotLink.attr('href');
-        if (link) {
-          cover = link.replace(/\/$/, '') + '/cover.jpg';
+      const imgEl = $(el).find('a[href*="riotpixels.com"] img').first();
+      if (imgEl.length) {
+        let src = imgEl.attr('src');
+        if (src && !src.startsWith('http')) {
+          src = 'https://fitgirl-repacks.site' + src;
         }
+        cover = src;
       }
 
-      // Filter after scraping
+      // Filtro búsqueda
       if (search && !title.toLowerCase().includes(search.toLowerCase().trim())) return;
 
       games.push({ id, title, cover });
