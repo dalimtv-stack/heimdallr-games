@@ -6,11 +6,13 @@ export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
   const fetchGames = async (reset = false) => {
+    if (loading) return;
     setLoading(true);
+
     const p = reset ? 1 : page;
     const url = search
       ? `/api/games?s=${encodeURIComponent(search.trim())}&page=${p}`
@@ -19,13 +21,17 @@ export default function Home() {
     try {
       const res = await fetch(url);
       const data = await res.json();
-      console.log('API Response:', data); // DEBUG
 
-      setGames(reset ? data.games : [...games, ...data.games]);
+      if (reset) {
+        setGames(data.games);
+        setPage(2);
+      } else {
+        setGames(prev => [...prev, ...data.games]);
+        setPage(p + 1);
+      }
       setHasMore(data.hasMore);
-      if (reset) setPage(2);
     } catch (err) {
-      console.error('Fetch failed:', err);
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -37,7 +43,11 @@ export default function Home() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchGames(true);
+    fetchGames(true); // Reset al buscar
+  };
+
+  const loadMore = () => {
+    fetchGames();
   };
 
   return (
@@ -52,7 +62,7 @@ export default function Home() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar..."
+            placeholder="Buscar juegos..."
             className="flex-1 px-5 py-3 bg-gray-800 rounded-xl text-white"
           />
           <button type="submit" className="px-8 py-3 bg-yellow-500 text-black font-bold rounded-xl">
@@ -69,7 +79,7 @@ export default function Home() {
                   alt={game.title}
                   width={300}
                   height={450}
-                  className="w-full h-auto"
+                  className="w-full h-auto object-cover"
                   unoptimized={true}
                   onError={(e) => {
                     e.currentTarget.src = 'https://via.placeholder.com/300x450/333/fff?text=No+Cover';
@@ -85,11 +95,12 @@ export default function Home() {
           ))}
         </div>
 
-        {loading && <p className="text-center mt-8">Cargando...</p>}
+        {loading && <p className="text-center mt-8 text-yellow-400">Cargando...</p>}
+
         {hasMore && !loading && (
           <div className="text-center mt-12">
             <button
-              onClick={() => { setPage(p => p + 1); fetchGames(); }}
+              onClick={loadMore}
               className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold rounded-full"
             >
               Cargar más
