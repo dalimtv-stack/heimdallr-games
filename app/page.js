@@ -23,10 +23,10 @@ export default function Home() {
       const data = await res.json();
 
       if (reset) {
-        setGames(data.games);
+        setGames(data.games);  // FIXED: Reset lista al buscar o inicio
         setPage(2);
       } else {
-        setGames(prev => [...prev, ...data.games]);
+        setGames(prev => [...prev, ...data.games]);  // Append para paginación
         setPage(p + 1);
       }
       setHasMore(data.hasMore);
@@ -43,11 +43,12 @@ export default function Home() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchGames(true); // Reset al buscar
+    setPage(1);  // FIXED: Reset page al buscar
+    fetchGames(true);
   };
 
   const loadMore = () => {
-    fetchGames();
+    fetchGames();  // FIXED: No reset, append
   };
 
   return (
