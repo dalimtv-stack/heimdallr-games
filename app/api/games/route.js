@@ -25,31 +25,32 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // Recorre cada h3 (donde está #ID)
-    $('h3').each((i, h3El) => {
-      const h3Text = $(h3El).text().trim();
-      const idMatch = h3Text.match(/^#(\d+)/);
-      if (!idMatch) return;
+    $('h1').each((i, h1El) => {
+      const text = $(h1El).text().trim();
+      if (!text) return;
 
-      const id = idMatch[1];
+      // FIXED: Solo juegos (contiene "v" versión o "Edition"/"DLC" para evitar no-juegos)
+      if (!text.match(/v\d+\.?\d*|Edition|DLC|Bonus/)) return;
 
-      // Título desde h1 siguiente (o fallback)
-      let title = '';
-      const h1El = $(h3El).nextAll('h1').first();
-      if (h1El.length) {
-        title = h1El.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
-      } else {
-        title = h3Text.replace(/^#\d+\s*/, '').trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+      let id = i + 1;  // Fallback ID
+      let title = text.replace(/^\s*#?\d+\s*[–\-]?\s*/, '').trim();
+
+      // FIXED: ID real de h3 anterior o siguiente (ej: "#5236 Updated Title")
+      const h3El = $(h1El).prev('h3').length ? $(h1El).prev('h3') : $(h1El).next('h3');
+      if (h3El.length) {
+        const idMatch = h3El.text().trim().match(/^#(\d+)/);
+        if (idMatch) id = idMatch[1];
       }
 
-      // Cover: riotpixels link + /cover.jpg (SIEMPRE funciona)
+      // FIXED: Cover - riotpixels link + /cover.jpg (carga real en main y search)
+      let coverLink = $(h1El).nextAll('a[href*="riotpixels.com"]').first().attr('href');
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
-      const riotLink = $(h3El).nextAll('a[href*="riotpixels.com"]').first().attr('href');
-      if (riotLink) {
-        cover = riotLink.replace(/\/$/, '') + '/cover.jpg';
+
+      if (coverLink) {
+        cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
       }
 
-      // Filtro búsqueda
+      // FIXED: Filtro búsqueda DESPUÉS de scrape (funciona en search page)
       if (search && !title.toLowerCase().includes(search.toLowerCase().trim())) return;
 
       games.push({ id, title, cover });
