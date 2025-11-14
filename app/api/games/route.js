@@ -32,7 +32,7 @@ export async function GET(request) {
       // FIXED: Solo juegos (contiene "v" versión o "Edition"/"DLC" repack)
       if (!text.match(/v\d+\.?\d*|Edition|DLC|Bonus/)) return;
 
-      const id = i + 1;  // Fallback ID
+      let id = i + 1;  // FIXED: let para permitir reasignación
       let title = text.replace(/^\s*#?\d+\s*[–\-]?\s*/, '').trim();
 
       // FIXED: ID real de siguiente h3 si existe
