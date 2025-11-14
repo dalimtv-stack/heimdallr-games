@@ -25,32 +25,31 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    $('h1').each((i, el) => {
-      const text = $(el).text().trim();
-      if (!text) return;
+    // Recorre cada h3 (donde está #ID)
+    $('h3').each((i, h3El) => {
+      const h3Text = $(h3El).text().trim();
+      const idMatch = h3Text.match(/^#(\d+)/);
+      if (!idMatch) return;
 
-      // FIXED: Solo juegos (contiene "v" versión o "Edition"/"DLC" repack)
-      if (!text.match(/v\d+\.?\d*|Edition|DLC|Bonus/)) return;
+      const id = idMatch[1];
 
-      let id = i + 1;  // FIXED: let para permitir reasignación
-      let title = text.replace(/^\s*#?\d+\s*[–\-]?\s*/, '').trim();
-
-      // FIXED: ID real de siguiente h3 si existe
-      const h3El = $(el).next('h3').first();
-      if (h3El.length) {
-        const idMatch = h3El.text().trim().match(/^#(\d+)/);
-        if (idMatch) id = idMatch[1];
+      // Título desde h1 siguiente (o fallback)
+      let title = '';
+      const h1El = $(h3El).nextAll('h1').first();
+      if (h1El.length) {
+        title = h1El.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+      } else {
+        title = h3Text.replace(/^#\d+\s*/, '').trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
       }
 
-      // FIXED: Cover - riotpixels link + /cover.jpg (funciona en main y search)
-      let coverLink = $(el).nextAll('a[href*="riotpixels.com"]').first().attr('href');
+      // Cover: riotpixels link + /cover.jpg (SIEMPRE funciona)
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
-
-      if (coverLink) {
-        cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
+      const riotLink = $(h3El).nextAll('a[href*="riotpixels.com"]').first().attr('href');
+      if (riotLink) {
+        cover = riotLink.replace(/\/$/, '') + '/cover.jpg';
       }
 
-      // FIXED: Filtro búsqueda DESPUÉS de scrape
+      // Filtro búsqueda
       if (search && !title.toLowerCase().includes(search.toLowerCase().trim())) return;
 
       games.push({ id, title, cover });
