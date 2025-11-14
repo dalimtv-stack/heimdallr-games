@@ -17,7 +17,7 @@ export async function GET(request) {
   try {
     const { data } = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
       timeout: 20000
     });
@@ -25,34 +25,36 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // FIXED: $('h3') para "### #ID Updated Title" (HTML real)
-    $('h3').each((i, el) => {
-      const text = $(el).text().trim();
-      // FIXED: Regex exacto para "### #\d+ Updated? Title"
-      const match = text.match(/^###\s*#(\d+)\s*(Updated\s+)?(.+)$/);
-      if (!match) return;
+    // FIXED: h3 para ID (#ID Updated Title), h1 para title ([Title](link))
+    $('h3').each((i, h3El) => {
+      const idText = $(h3El).text().trim();
+      const idMatch = idText.match(/^#(\d+)\s*(Updated\s+)?(.+)$/);
+      if (!idMatch) return;
 
-      const id = match[1];
-      let title = match[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+      const id = idMatch[1];
+      let title = idMatch[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
 
-      // FIXED: Cover - siguiente a[href*="riotpixels"] + /cover.jpg
-      const riotLink = $(el).next('a[href*="riotpixels.com"]').first();
-      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0,12));
+      // FIXED: Siguiente h1 para title real
+      const h1El = $(h3El).next('h1').find('a').first();
+      if (h1El.length) title = h1El.text().trim().replace(/^\[|\]$/g, '').replace(/\s*–\s*FitGirl Repack.*/i, '');
 
-      if (riotLink.length) {
-        let coverLink = riotLink.attr('href');
-        if (coverLink) {
-          cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
-        }
+      // FIXED: Cover de a[href*="riotpixels"] después del h3
+      let coverLink = $(h3El).nextAll('a[href*="riotpixels.com"]').first().attr('href');
+      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0,10));
+
+      if (coverLink) {
+        // FIXED: en.riotpixels.com/games/nombre/ → cover.jpg
+        const base = coverLink.replace('en.', 'www.').split('/').slice(0, 5).join('/');
+        cover = `${base}/cover.jpg`;
       }
 
-      // FIXED: Filtro búsqueda
+      // FIXED: Filtro búsqueda en title
       if (search && !title.toLowerCase().includes(search.toLowerCase().trim())) return;
 
       games.push({ id, title, cover });
     });
 
-    const hasMore = games.length >= 5;  // Portada ~5 juegos
+    const hasMore = games.length >= 10; // ~18 en portada
 
     return NextResponse.json({ games: games.slice(0, 20), hasMore });
   } catch (error) {
