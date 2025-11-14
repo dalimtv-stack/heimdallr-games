@@ -6,23 +6,36 @@ export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState(null);  // FIXED: Error state
 
   const fetchGames = async (reset = false) => {
     setLoading(true);
-    const p = reset ? 1 : page;
-    const url = search
-      ? `/api/games?s=${encodeURIComponent(search)}&page=${p}`
-      : `/api/games?page=${p}`;
+    setError(null);
+    try {
+      const p = reset ? 1 : page;
+      const url = search
+        ? `/api/games?s=${encodeURIComponent(search.replace(/\s+/g, '+'))}&page=${p}`  // FIXED: Espacios a +
+        : `/api/games?page=${p}`;
 
-    const res = await fetch(url);
-    const data = await res.json();
+      console.log('Fetching:', url);  // FIXED: Debug log
 
-    setGames(reset ? data.games : [...games, ...data.games]);
-    setHasMore(data.hasMore);
-    if (reset) setPage(2);
-    setLoading(false);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      console.log('Data received:', data);  // FIXED: Debug
+
+      setGames(reset ? data.games : [...games, ...data.games]);
+      setHasMore(data.hasMore);
+      if (reset) setPage(2);
+    } catch (err) {
+      console.error('Fetch error:', err);  // FIXED: Log error
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -31,11 +44,21 @@ export default function Home() {
 
   const handleSearch = (e) => {
     e.preventDefault();
+    setPage(1);
     fetchGames(true);
   };
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white p-6 text-center">
+        <h1 className="text-2xl">Error: {error}</h1>
+        <button onClick={() => fetchGames(true)} className="mt-4 px-4 py-2 bg-red-600 rounded">Reintentar</button>
+      </div>
+    );  // FIXED: Muestra error
+  }
+
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-center mb-8 text-yellow-400">
           Heimdallr Games
@@ -58,7 +81,7 @@ export default function Home() {
           </button>
         </form>
 
-        {/* Grid de juegos */}
+        {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
           {games.map((game) => (
             <div
@@ -72,7 +95,8 @@ export default function Home() {
                   width={300}
                   height={450}
                   className="w-full h-auto object-cover"
-                  unoptimized
+                  unoptimized  // FIXED: Para external images
+                  onError={(e) => { e.target.src = 'https://via.placeholder.com/300x450?text=Error'; }}  // FIXED: Fallback image
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-100 transition">
                   <div className="absolute bottom-0 left-0 right-0 p-3">
@@ -86,15 +110,15 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Cargar más */}
-        {hasMore && (
+        {/* Loading / Cargar más */}
+        {loading && <div className="text-center mt-8">Cargando juegos...</div>}
+        {hasMore && !loading && (
           <div className="text-center mt-12">
             <button
               onClick={() => { setPage(p => p + 1); fetchGames(); }}
-              disabled={loading}
-              className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold rounded-full hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 transition"
+              className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold rounded-full hover:from-yellow-400 hover:to-orange-400 transition"
             >
-              {loading ? 'Cargando...' : 'Cargar más juegos'}
+              Cargar más juegos
             </button>
           </div>
         )}
