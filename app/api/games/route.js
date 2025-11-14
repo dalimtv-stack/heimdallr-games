@@ -1,4 +1,3 @@
-// app/api/games/route.js
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
@@ -20,43 +19,37 @@ export async function GET(request) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
-      timeout: 15000
+      timeout: 20000
     });
 
     const $ = cheerio.load(data);
     const games = [];
 
-    // FIXED: h3 + clase .entry-title (FitGirl actual)
-    $('h3.entry-title, h3').each((i, el) => {
+    // FIXED: h1 para títulos (real FitGirl HTML)
+    $('h1').each((i, el) => {
       const text = $(el).text().trim();
-      const match = text.match(/^#(\d+)\s*(Updated\s*)?(.+)$/);
-      if (!match) return;
+      if (!text) return;
 
-      const id = match[1];
-      let title = match[3].trim();
+      // FIXED: ID de link o metadata (si no, usa index como ID)
+      const id = i + 1;  // Fallback ID secuencial
+      const title = text.replace(/^\s*#?\d+\s*[–\-]?\s*/, '').trim();  // Limpia #ID si hay
 
-      // FIXED: Quitar "Repack" si está al final
-      title = title.replace(/\s*–\s*FitGirl Repack.*$/i, '').trim();
-
-      // FIXED: Cover - busca link riotpixels y fuerza /cover.jpg
+      // FIXED: Cover de a[href*="riotpixels"] (en.riotpixels real)
       let coverLink = $(el).nextAll('a[href*="riotpixels.com"]').first().attr('href');
-      let cover = 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=' + encodeURIComponent(title.slice(0, 15));
+      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
 
       if (coverLink) {
-        // Convertir en.riotpixels.com → www.riotpixels.com/cover.jpg
+        // FIXED: en.riotpixels.com/games/nombre/ → cover.jpg
         const base = coverLink.replace('en.', 'www.').split('/').slice(0, 5).join('/');
         cover = `${base}/cover.jpg`;
       }
 
-      games.push({ id, title, cover });
+      games.push({ id: String(id), title, cover });
     });
 
-    const hasMore = games.length >= 12; // 12 por página en FitGirl
+    const hasMore = games.length >= 10;  // FitGirl ~10 por página
 
-    return NextResponse.json({
-      games: games.slice(0, 24),
-      hasMore
-    });
+    return NextResponse.json({ games: games.slice(0, 20), hasMore });
   } catch (error) {
     console.error('Scrape error:', error.message);
     return NextResponse.json({ games: [], hasMore: false });
