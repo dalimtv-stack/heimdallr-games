@@ -25,37 +25,32 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // Solo artículos de tipo "post" (juegos) — evita anuncios, noticias, etc.
-    $('article.post-type-post').each((i, el) => {
-      const linkEl = $(el).find('h1.entry-title a').first();
-      if (!linkEl.length) return;
+    $('h1').each((i, el) => {
+      const text = $(el).text().trim();
+      if (!text) return;
 
-      const postUrl = linkEl.attr('href');
-      const title = linkEl.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+      // FIXED: Solo juegos (contiene "v" versión o "Edition"/"DLC" repack)
+      if (!text.match(/v\d+\.?\d*|Edition|DLC|Bonus/)) return;
 
-      // ID desde # en URL: /.../#5236
-      const idMatch = postUrl.match(/#(\d+)$/);
-      const id = idMatch ? idMatch[1] : String(i + 1);
+      const id = i + 1;  // Fallback ID
+      let title = text.replace(/^\s*#?\d+\s*[–\-]?\s*/, '').trim();
 
-      // Cover: intenta img real, si no → riotpixels + /cover.jpg
-      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
-      
-      const imgEl = $(el).find('a[href*="riotpixels.com"] img').first();
-      if (imgEl.length) {
-        let src = imgEl.attr('src');
-        if (src && !src.startsWith('http')) {
-          src = 'https://fitgirl-repacks.site' + src;
-        }
-        cover = src;
-      } else {
-        // Fallback: riotpixels link + /cover.jpg
-        const riotLink = $(el).find('a[href*="riotpixels.com"]').first().attr('href');
-        if (riotLink) {
-          cover = riotLink.replace(/\/$/, '') + '/cover.jpg';
-        }
+      // FIXED: ID real de siguiente h3 si existe
+      const h3El = $(el).next('h3').first();
+      if (h3El.length) {
+        const idMatch = h3El.text().trim().match(/^#(\d+)/);
+        if (idMatch) id = idMatch[1];
       }
 
-      // Filtro búsqueda
+      // FIXED: Cover - riotpixels link + /cover.jpg (funciona en main y search)
+      let coverLink = $(el).nextAll('a[href*="riotpixels.com"]').first().attr('href');
+      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
+
+      if (coverLink) {
+        cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
+      }
+
+      // FIXED: Filtro búsqueda DESPUÉS de scrape
       if (search && !title.toLowerCase().includes(search.toLowerCase().trim())) return;
 
       games.push({ id, title, cover });
