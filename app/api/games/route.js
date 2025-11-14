@@ -17,7 +17,7 @@ export async function GET(request) {
   try {
     const { data } = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
       timeout: 20000
     });
@@ -25,7 +25,7 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // FIXED: h3 para ID (#ID Updated Title), h1 para title ([Title](link))
+    // FIXED: h3 para "#ID Title" (sin "###"), h1 para "[Title]" clean
     $('h3').each((i, h3El) => {
       const idText = $(h3El).text().trim();
       const idMatch = idText.match(/^#(\d+)\s*(Updated\s+)?(.+)$/);
@@ -34,18 +34,19 @@ export async function GET(request) {
       const id = idMatch[1];
       let title = idMatch[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
 
-      // FIXED: Siguiente h1 para title real
+      // FIXED: Siguiente h1 para title real (quita [ ] y link text)
       const h1El = $(h3El).next('h1').find('a').first();
-      if (h1El.length) title = h1El.text().trim().replace(/^\[|\]$/g, '').replace(/\s*–\s*FitGirl Repack.*/i, '');
+      if (h1El.length) {
+        title = h1El.text().trim().replace(/^\[|\]$/g, '').replace(/\s*–\s*FitGirl Repack.*/i, '');
+      }
 
-      // FIXED: Cover de a[href*="riotpixels"] después del h3
+      // FIXED: Siguiente a[href*="riotpixels"] para cover (usa en. + /cover.jpg)
       let coverLink = $(h3El).nextAll('a[href*="riotpixels.com"]').first().attr('href');
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0,10));
 
       if (coverLink) {
-        // FIXED: en.riotpixels.com/games/nombre/ → cover.jpg
-        const base = coverLink.replace('en.', 'www.').split('/').slice(0, 5).join('/');
-        cover = `${base}/cover.jpg`;
+        // FIXED: Mantén en.riotpixels.com/games/slug/ + /cover.jpg
+        cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
       }
 
       // FIXED: Filtro búsqueda en title
@@ -54,7 +55,8 @@ export async function GET(request) {
       games.push({ id, title, cover });
     });
 
-    const hasMore = games.length >= 10; // ~18 en portada
+    // FIXED: hasMore si >=3 juegos (portada tiene 5)
+    const hasMore = games.length >= 3;
 
     return NextResponse.json({ games: games.slice(0, 20), hasMore });
   } catch (error) {
