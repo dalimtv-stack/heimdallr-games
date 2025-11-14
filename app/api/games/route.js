@@ -17,7 +17,7 @@ export async function GET(request) {
   try {
     const { data } = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
       timeout: 20000
     });
@@ -25,29 +25,31 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // FIXED: h1 para títulos (real FitGirl HTML)
-    $('h1').each((i, el) => {
+    // FIXED: $('h3') para "#ID Updated/Title" (HTML real FitGirl)
+    $('h3').each((i, el) => {
       const text = $(el).text().trim();
-      if (!text) return;
+      // FIXED: Regex exacto: #\d+ (Updated\s+)? Title
+      const match = text.match(/^#(\d+)\s*(Updated\s+)?(.+)$/);
+      if (!match) return;
 
-      // FIXED: ID de link o metadata (si no, usa index como ID)
-      const id = i + 1;  // Fallback ID secuencial
-      const title = text.replace(/^\s*#?\d+\s*[–\-]?\s*/, '').trim();  // Limpia #ID si hay
+      const id = match[1];
+      const title = match[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
 
-      // FIXED: Cover de a[href*="riotpixels"] (en.riotpixels real)
-      let coverLink = $(el).nextAll('a[href*="riotpixels.com"]').first().attr('href');
-      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
+      // FIXED: Primer <a href="https://en.riotpixels.com/games/nombre/"> después del h3 → usa src de <img> dentro
+      const riotLink = $(el).nextAll('a[href*="riotpixels.com"]').first();
+      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0,12));
 
-      if (coverLink) {
-        // FIXED: en.riotpixels.com/games/nombre/ → cover.jpg
-        const base = coverLink.replace('en.', 'www.').split('/').slice(0, 5).join('/');
-        cover = `${base}/cover.jpg`;
+      if (riotLink.length) {
+        const imgSrc = riotLink.find('img').attr('src');
+        cover = imgSrc || riotLink.attr('href');
+        if (imgSrc && !imgSrc.startsWith('http')) cover = 'https://fitgirl-repacks.site/' + imgSrc;
       }
 
-      games.push({ id: String(id), title, cover });
+      games.push({ id, title, cover });
     });
 
-    const hasMore = games.length >= 10;  // FitGirl ~10 por página
+    // FIXED: hasMore si encuentra >=10 juegos (FitGirl ~10-15/página)
+    const hasMore = games.length >= 10;
 
     return NextResponse.json({ games: games.slice(0, 20), hasMore });
   } catch (error) {
