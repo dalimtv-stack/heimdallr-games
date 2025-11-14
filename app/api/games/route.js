@@ -25,6 +25,81 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
+    // FIXED: Scrapea h3 para ID, h1 para title (diferente en main vs search)
+    $('h3').each((i, h3El) => {
+      const idText = $(h3El).text().trim();
+      let id = '';
+      let title = '';
+
+      // FIXED: Regex para main page ("### #ID Updated Title") vs search ("#ID")
+      const mainMatch = idText.match(/^###\s*#(\d+)\s*(Updated\s+)?(.+)$/);
+      if (mainMatch) {
+        id = mainMatch[1];
+        title = mainMatch[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+      } else {
+        const searchMatch = idText.match(/^#(\d+)$/);
+        if (searchMatch) {
+          id = searchMatch[1];
+          // FIXED: Siguiente h1 para title en search (sin [ ])
+          const h1El = $(h3El).next('h1').first();
+          if (h1El.length) title = h1El.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+        }
+      }
+
+      if (!id || !title) return;
+
+      // FIXED: Cover - siguiente a[href*="riotpixels"] + /cover.jpg (usa en.riotpixels)
+      const riotLink = $(h3El).nextAll('a[href*="riotpixels.com"]').first();
+      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0,10));
+
+      if (riotLink.length) {
+        let coverLink = riotLink.attr('href');
+        if (coverLink) {
+          cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
+        }
+      }
+
+      // FIXED: Filtro búsqueda - aplica DESPUÉS de scrape (para search page, no filtra)
+      if (search && !title.toLowerCase().includes(search.toLowerCase().trim())) return;
+
+      games.push({ id, title, cover });
+    });
+
+    // FIXED: hasMore si >=5 juegos (portada ~5)
+    const hasMore = games.length >= 5;
+
+    return NextResponse.json({ games: games.slice(0, 20), hasMore });
+  } catch (error) {
+    console.error('Scrape error:', error.message);
+    return NextResponse.json({ games: [], hasMore: false });
+  }
+}import { NextResponse } from 'next/server';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const page = parseInt(searchParams.get('page') || '1');
+  const search = searchParams.get('s') || '';
+
+  let url = 'https://fitgirl-repacks.site/';
+  if (search) {
+    url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+  } else if (page > 1) {
+    url = `https://fitgirl-repacks.site/page/${page}/`;
+  }
+
+  try {
+    const { data } = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      timeout: 20000
+    });
+
+    const $ = cheerio.load(data);
+    const games = [];
+
     // FIXED: h3 para "#ID Title" (sin "###"), h1 para "[Title]" clean
     $('h3').each((i, h3El) => {
       const idText = $(h3El).text().trim();
