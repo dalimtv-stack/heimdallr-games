@@ -1,7 +1,7 @@
 // app/api/games/route.js
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import * as cheerio from 'cheerio';  // FIXED: * as cheerio
+import * as cheerio from 'cheerio';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -10,7 +10,7 @@ export async function GET(request) {
 
   let url = 'https://fitgirl-repacks.site/';
   if (search) {
-    url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(search.replace(/\s+/g, '+'))}`;  // FIXED: Espacios a +
+    url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(search.replace(/\s+/g, '+'))}`;
   } else if (page > 1) {
     url = `https://fitgirl-repacks.site/page/${page}/`;
   }
@@ -18,39 +18,39 @@ export async function GET(request) {
   try {
     const { data } = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Steam Deck) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
-      timeout: 15000  // FIXED: Más tiempo para scrape
+      timeout: 15000
     });
 
     const $ = cheerio.load(data);
     const games = [];
 
-    $('h1, h2').each((i, el) => {
+    // FIXED: h3 para títulos #ID (nuevo HTML FitGirl)
+    $('h3').each((i, el) => {
       const text = $(el).text().trim();
-      const match = text.match(/^#(\d+)\s*[––-]\s*(.+)$/);  // FIXED: Mejor regex para – o -
+      // FIXED: Regex maneja "Updated" / cualquier texto después de #ID
+      const match = text.match(/^#(\d+)\s*(Updated\s*)?(.+)$/);
       if (!match) return;
 
       const id = match[1];
-      const title = match[2].trim();
+      const title = match[3].trim();
 
-      // Carátula: Busca mejor
-      let cover = $(el).nextAll('a[href*="riotpixels.com"]').first().find('img').attr('src') || 
-                  $(el).nextAll('img.wp-post-image').first().attr('src') ||
-                  $(el).nextAll('img').first().attr('src');
-      if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site/' + cover;
+      // FIXED: Covers de riotpixels links (primer a[href*="riotpixels"])
+      let cover = $(el).nextAll('a[href*="riotpixels.com"]').first().attr('href');
+      if (cover) {
+        cover = cover.replace('en.', 'www.') + '/cover.jpg';  // Añade /cover.jpg para imagen
+      }
       if (!cover || !cover.startsWith('http')) {
-        cover = 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=No+Cover';
+        cover = 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=' + encodeURIComponent(title.slice(0,15));
       }
 
       games.push({ id, title, cover });
     });
 
-    const hasMore = games.length >= 20;  // FIXED: Ajuste realista
-
-    return NextResponse.json({ games, hasMore });
+    return NextResponse.json({ games: games.slice(0, 24), hasMore: games.length >= 24 });
   } catch (error) {
-    console.error('Scrape error:', error.message);  // FIXED: Log para Vercel
+    console.error('Scrape error:', error.message);
     return NextResponse.json({ games: [], hasMore: false, error: error.message }, { status: 500 });
   }
 }
