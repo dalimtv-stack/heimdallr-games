@@ -25,41 +25,35 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // FIXED: h3 para ID ( "### #5236 Updated Title" ), h1 para title link
-    $('h3').each((i, h3El) => {
-      const idText = $(h3El).text().trim();
-      // FIXED: Regex para "### #\d+ (Updated )?Title"
-      const idMatch = idText.match(/^###\s*#(\d+)\s*(Updated\s+)?(.+)$/);
-      if (!idMatch) return;
+    // FIXED: $('h3') para "### #ID Updated Title" (HTML real)
+    $('h3').each((i, el) => {
+      const text = $(el).text().trim();
+      // FIXED: Regex exacto para "### #\d+ Updated? Title"
+      const match = text.match(/^###\s*#(\d+)\s*(Updated\s+)?(.+)$/);
+      if (!match) return;
 
-      const id = idMatch[1];
-      let title = idMatch[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+      const id = match[1];
+      let title = match[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '').replace(/\s*v\d+\.?\d*\s*.+$/i, '');  // Limpia versión
 
-      // FIXED: Siguiente h1 para confirmar title (opcional, usa del h3 si no)
-      const h1El = $(h3El).next('h1').find('a').first();
-      if (h1El.length) title = h1El.text().trim();
-
-      // FIXED: Cover de img src con riotpixels (o link base + /cover.jpg)
+      // FIXED: Cover - primer a[href*="riotpixels"] después del h3
+      const riotLink = $(el).nextAll('a[href*="riotpixels.com"]').first();
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0,12));
-      const riotImg = $(h3El).nextAll('img[src*="riotpixels.com"]').first();
-      if (riotImg.length) {
-        cover = riotImg.attr('src');
-      } else {
-        const riotLink = $(h3El).nextAll('a[href*="riotpixels.com"]').first().attr('href');
-        if (riotLink) {
-          // FIXED: Base URL + /cover.jpg
-          cover = riotLink.replace(/\/$/, '') + '/cover.jpg';
+
+      if (riotLink.length) {
+        let coverLink = riotLink.attr('href');
+        if (coverLink) {
+          // FIXED: Agregar /cover.jpg al final del slug
+          cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
         }
       }
 
-      // FIXED: Filtro búsqueda en title
+      // FIXED: Filtro búsqueda
       if (search && !title.toLowerCase().includes(search.toLowerCase().trim())) return;
 
       games.push({ id, title, cover });
     });
 
-    // FIXED: hasMore si >=3 juegos (FitGirl latest ~3-5 en portada)
-    const hasMore = games.length >= 3;
+    const hasMore = games.length >= 3;  // Portada ~3-5 juegos
 
     return NextResponse.json({ games: games.slice(0, 20), hasMore });
   } catch (error) {
