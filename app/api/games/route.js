@@ -1,4 +1,3 @@
-// app/api/games/route.js
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
@@ -26,8 +25,8 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // Cada juego está en <article class="post">
-    $('article.post').each((i, el) => {
+    // Solo artículos de tipo "post" (juegos) — evita anuncios, noticias, etc.
+    $('article.post-type-post').each((i, el) => {
       const linkEl = $(el).find('h1.entry-title a').first();
       if (!linkEl.length) return;
 
@@ -38,8 +37,9 @@ export async function GET(request) {
       const idMatch = postUrl.match(/#(\d+)$/);
       const id = idMatch ? idMatch[1] : String(i + 1);
 
-      // Cover: img dentro de a[href*="riotpixels"]
+      // Cover: intenta img real, si no → riotpixels + /cover.jpg
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
+      
       const imgEl = $(el).find('a[href*="riotpixels.com"] img').first();
       if (imgEl.length) {
         let src = imgEl.attr('src');
@@ -47,6 +47,12 @@ export async function GET(request) {
           src = 'https://fitgirl-repacks.site' + src;
         }
         cover = src;
+      } else {
+        // Fallback: riotpixels link + /cover.jpg
+        const riotLink = $(el).find('a[href*="riotpixels.com"]').first().attr('href');
+        if (riotLink) {
+          cover = riotLink.replace(/\/$/, '') + '/cover.jpg';
+        }
       }
 
       // Filtro búsqueda
