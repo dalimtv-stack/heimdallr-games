@@ -25,30 +25,36 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // FIXED: $('h3') para "#ID Updated/Title" (HTML real FitGirl)
-    $('h3').each((i, el) => {
-      const text = $(el).text().trim();
-      // FIXED: Regex exacto: #\d+ (Updated\s+)? Title
-      const match = text.match(/^#(\d+)\s*(Updated\s+)?(.+)$/);
-      if (!match) return;
+    // FIXED: h3 para ID (#5236), siguiente h1 a para title
+    $('h3').each((i, idEl) => {
+      const idText = $(idEl).text().trim();
+      const idMatch = idText.match(/^#(\d+)$/);
+      if (!idMatch) return;
+      const id = idMatch[1];
 
-      const id = match[1];
-      const title = match[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+      // Siguiente h1 a para title
+      const titleEl = $(idEl).next('h1').find('a').first();
+      if (!titleEl.length) return;
+      let title = titleEl.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
 
-      // FIXED: Primer <a href="https://en.riotpixels.com/games/nombre/"> después del h3 → usa src de <img> dentro
-      const riotLink = $(el).nextAll('a[href*="riotpixels.com"]').first();
+      // FIXED: Cover de a[href*="riotpixels"] después del h1
+      const riotLink = titleEl.closest('article').find('a[href*="riotpixels.com"]').first();
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0,12));
 
       if (riotLink.length) {
-        const imgSrc = riotLink.find('img').attr('src');
-        cover = imgSrc || riotLink.attr('href');
-        if (imgSrc && !imgSrc.startsWith('http')) cover = 'https://fitgirl-repacks.site/' + imgSrc;
+        let coverLink = riotLink.attr('href');
+        if (coverLink) {
+          // FIXED: en.riotpixels.com/games/slug/ → en.riotpixels.com/games/slug/cover.jpg
+          cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
+        }
       }
+
+      // Filtro búsqueda (si search, check title)
+      if (search && !title.toLowerCase().includes(search.toLowerCase())) return;
 
       games.push({ id, title, cover });
     });
 
-    // FIXED: hasMore si encuentra >=10 juegos (FitGirl ~10-15/página)
     const hasMore = games.length >= 10;
 
     return NextResponse.json({ games: games.slice(0, 20), hasMore });
