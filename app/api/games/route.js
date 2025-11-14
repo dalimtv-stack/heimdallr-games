@@ -33,16 +33,15 @@ export async function GET(request) {
       if (!match) return;
 
       const id = match[1];
-      let title = match[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '').replace(/\s*v\d+\.?\d*\s*.+$/i, '');  // Limpia versión
+      let title = match[3].trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
 
-      // FIXED: Cover - primer a[href*="riotpixels"] después del h3
-      const riotLink = $(el).nextAll('a[href*="riotpixels.com"]').first();
+      // FIXED: Cover - siguiente a[href*="riotpixels"] + /cover.jpg
+      const riotLink = $(el).next('a[href*="riotpixels.com"]').first();
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0,12));
 
       if (riotLink.length) {
         let coverLink = riotLink.attr('href');
         if (coverLink) {
-          // FIXED: Agregar /cover.jpg al final del slug
           cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
         }
       }
@@ -53,7 +52,7 @@ export async function GET(request) {
       games.push({ id, title, cover });
     });
 
-    const hasMore = games.length >= 3;  // Portada ~3-5 juegos
+    const hasMore = games.length >= 5;  // Portada ~5 juegos
 
     return NextResponse.json({ games: games.slice(0, 20), hasMore });
   } catch (error) {
