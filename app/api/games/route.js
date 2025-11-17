@@ -105,13 +105,21 @@ export async function GET(request) {
         const realCover = await getRealCover(game.postUrl);
         if (realCover) cover = realCover;
       } else {
-        // FIXED: Cover para Novedades - img en post-thumbnail o img en article
+        // FIXED: Cover para Novedades - img en post-thumbnail o cualquier img en article (evita reutilización)
         const article = $(`a[href="${game.postUrl}"]`).closest('article, div.post-item');
         const imgEl = article.find('.post-thumbnail img, img.wp-post-image, img[src*="imageban.ru"], img[src*="riotpixels.com"]').first();
         if (imgEl.length) {
           let src = imgEl.attr('src');
           if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
           cover = src;
+        } else {
+          // Fallback adicional para primeros juegos: primer img en el article
+          const fallbackImg = article.find('img').first();
+          if (fallbackImg.length) {
+            let src = fallbackImg.attr('src');
+            if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
+            cover = src;
+          }
         }
       }
 
