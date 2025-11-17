@@ -36,13 +36,11 @@ export default function Home() {
         setPage(2);
       } else {
         setGames(prev => [...prev, ...newGames]);
-        setPage(prev => prev + 1);
+        setPage(p + 1);
       }
       setHasMore(data.hasMore);
     } catch (err) {
       console.error('Error cargando juegos:', err);
-      setGames([]);
-      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -62,6 +60,8 @@ export default function Home() {
     setExpandedId(null);
     fetchGames(true);
   };
+
+  const loadMore = () => fetchGames();
 
   const toggleExpand = async (game) => {
     if (expandedId === game.id) {
@@ -214,7 +214,7 @@ export default function Home() {
 
         {hasMore && games.length > 0 && (
           <div className="text-center mt-16">
-            <button onClick={() => fetchGames()} disabled={loading} className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50">
+            <button onClick={loadMore} disabled={loading} className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50">
               {loading ? 'Cargando...' : 'Cargar más'}
             </button>
           </div>
