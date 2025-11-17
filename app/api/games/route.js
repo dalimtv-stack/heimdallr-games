@@ -2,68 +2,108 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-export async function GET() {
+// Función para obtener la carátula real desde la página individual del juego
+async function getRealCover(postUrl) {
   try {
-    const { data } = await axios.get('https://fitgirl-repacks.site/', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-      },
+    const { data } = await axios.get(postUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      timeout: 12000,
+    });
+    const $ = cheerio.load(data);
+
+    // 1. og:image → siempre está y es la carátula perfecta
+    const ogImage = $('meta[property="og:image"]').attr('content');
+    if (ogImage) return ogImage;
+
+    // 2. Imagen destacada del post
+    const featured = $('article img.wp-post-image, article img.size-full').first().attr('src');
+    if (featured) {
+      return featured.startsWith('http') ? featured : `https://fitgirl-repacks.site${featured}`;
+    }
+
+    // 3. Fallback riotpixels/cover.jpg
+    const riotLink = $('a[href*="riotpixels.com"]').first().attr('href');
+    if (riotLink) return riotLink.replace(/\/$/, '') + '/cover.jpg';
+
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const page = parseInt(searchParams.get('page') || '1');
+  const search = searchParams.get('s') || '';
+
+  // URL correcta para paginación en búsqueda: page/2/?s=war
+  let url = 'https://fitgirl-repacks.site/';
+  if (search) {
+    if (page > 1) {
+      url = `https://fitgirl-repacks.site/page/${page}/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+    } else {
+      url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+    }
+  } else if (page > 1) {
+    url = `https://fitgirl-repacks.site/page/${page}/`;
+  }
+
+  try {
+    const { data } = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 20000,
     });
 
     const $ = cheerio.load(data);
+    const tempGames = [];
+
+    $('article.post').each((i, el) => {
+      const linkEl = $(el).find('h1.entry-title a').first();
+      if (!linkEl.length) return;
+
+      const rawTitle = linkEl.text().trim();
+      if (rawTitle.toLowerCase().includes('upcoming repacks')) return;
+      if (rawTitle.toLowerCase().startsWith('updates digest')) return;
+
+      const title = rawTitle.replace(/\s*–\s*FitGirl Repack.*/i, '');
+      const postUrl = linkEl.attr('href');
+      const idMatch = postUrl.match(/#(\d+)$/);
+      const id = idMatch ? idMatch[1] : String(i + 1);
+
+      tempGames.push({ id, title, postUrl });
+    });
+
     const games = [];
+    const isSearch = !!search;
 
-    // Selector ultra-estable que funciona ahora mismo
-    $('article').each((i, el) => {
-      const $article = $(el);
-      const link = $article.find('h1 a').first();
-      if (!link.length) return;
+    for (const game of tempGames) {
+      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(game.title.slice(0, 10));
 
-      const fullUrl = link.attr('href') || '';
-      const idMatch = fullUrl.match(/#(\d+)/);
-      const id = idMatch ? idMatch[1] : `temp-${i}`;
-
-      let title = link.text().trim();
-      if (title.toLowerCase().includes('upcoming repacks') || title.toLowerCase().includes('updates digest')) return;
-      title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
-
-      // Cover: og:image o riotpixels o placeholder
-      let cover = 'https://via.placeholder.com/300x450/333/fff?text=No+Cover';
-      const ogImage = $article.find('meta[property="og:image"]').attr('content');
-      if (ogImage) cover = ogImage;
-
-      const riotImg = $article.find('img[src*="riotpixels"], img[src*="fitgirl-repacks.site"]').first();
-      if (riotImg.length) {
-        let src = riotImg.attr('src');
-        if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
-        cover = src;
+      if (isSearch) {
+        // En búsqueda → sacamos la carátula real del post individual
+        const realCover = await getRealCover(game.postUrl);
+        if (realCover) cover = realCover;
+      } else {
+        // En página principal → miniatura rápida (como siempre)
+        const article = $(`a[href="${game.postUrl}"]`).closest('article');
+        const imgEl = article.find('a[href*="riotpixels.com"] img').first();
+        if (imgEl.length) {
+          let src = imgEl.attr('src');
+          if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
+          cover = src;
+        }
       }
 
-      games.push({ id, title, cover });
-    });
+      if (isSearch && !game.title.toLowerCase().includes(search.toLowerCase().trim())) continue;
 
-    // Siempre devolvemos algo válido
-    return NextResponse.json({
-      games: games.slice(0, 20),
-      hasMore: games.length >= 10
-    });
+      games.push({ id: game.id, title: game.title, cover });
+    }
 
+    const hasMore = games.length >= 5;
+
+    return NextResponse.json({ games: games.slice(0, 20), hasMore });
   } catch (error) {
-    console.error('Scrape failed:', error.message);
-    // En caso de error total, devolvemos juegos falsos para que no se rompa la web
-    return NextResponse.json({
-      games: [
-        { id: '1', title: 'Kingdom Come: Deliverance II – Royal Edition', cover: 'https://fitgirl-repacks.site/wp-content/uploads/2024/11/Kingdom-Come-Deliverance-II-–-Royal-Edition-Repack.jpg' },
-        { id: '2', title: 'Warhammer 40,000: Space Marine 2', cover: 'https://fitgirl-repacks.site/wp-content/uploads/2024/11/Warhammer-40000-Space-Marine-2-Repack.jpg' },
-        { id: '3', title: 'God of War Ragnarök', cover: 'https://fitgirl-repacks.site/wp-content/uploads/2024/11/God-of-War-Ragnarök-Repack.jpg' },
-      ],
-      hasMore: false
-    });
+    console.error('Scrape error:', error.message);
+    return NextResponse.json({ games: [], hasMore: false });
   }
 }
