@@ -3,12 +3,13 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 export default function Home() {
-  const [games, setGames] = useState([]);        // ← siempre array
+  const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
+  // Estado para vista detalle
   const [selectedGame, setSelectedGame] = useState(null);
   const [gameDetails, setGameDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -25,10 +26,7 @@ export default function Home() {
     try {
       const res = await fetch(url);
       const data = await res.json();
-
-      // FIXED: Defensa total contra undefined
       const newGames = Array.isArray(data.games) ? data.games : [];
-      const newHasMore = !!data.hasMore;
 
       if (reset) {
         setGames(newGames);
@@ -37,10 +35,10 @@ export default function Home() {
         setGames(prev => [...prev, ...newGames]);
         setPage(p + 1);
       }
-      setHasMore(newHasMore);
+      setHasMore(data.hasMore);
     } catch (err) {
-      console.error('Fetch error:', err);
-      setGames([]);           // ← nunca undefined
+      console.error(err);
+      setGames([]);
       setHasMore(false);
     } finally {
       setLoading(false);
@@ -62,14 +60,18 @@ export default function Home() {
   const resetToHome = () => {
     setSearch('');
     setPage(1);
+    setSelectedGame(null);
+    setGameDetails(null);
     fetchGames(true);
   };
 
+  // Abrir detalles del juego (vista full)
   const openGameDetails = async (game) => {
-    if (!game?.id) return;
     setSelectedGame(game);
     setDetailsLoading(true);
     setGameDetails(null);
+    window.scrollTo(0, 0);
+
     try {
       const res = await fetch(`/api/game-details?id=${game.id}`);
       if (res.ok) {
@@ -83,17 +85,97 @@ export default function Home() {
     }
   };
 
-  const closeModal = () => {
-    setSelectedGame(null);
-    setGameDetails(null);
-  };
+  // Si estamos en vista detalle
+  if (selectedGame) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white">
+        <div className="max-w-6xl mx-auto p-6">
+          <button
+            onClick={resetToHome}
+            className="mb-6 text-yellow-400 hover:text-yellow-300 font-bold flex items-center gap-2"
+          >
+            ← Volver a la lista
+          </button>
 
+          {detailsLoading ? (
+            <p className="text-center text-yellow-400 text-2xl">Cargando detalles del juego...</p>
+          ) : gameDetails ? (
+            <div className="grid md:grid-cols-2 gap-10">
+              <div>
+                <Image
+                  src={gameDetails.cover || selectedGame.cover}
+                  alt={gameDetails.title}
+                  width={600}
+                  height={900}
+                  className="rounded-xl shadow-2xl w-full"
+                  unoptimized
+                />
+              </div>
+              <div className="space-y-6">
+                <h1 className="text-4xl font-bold text-yellow-400">{gameDetails.title}</h1>
+
+                <div className="bg-gray-900 rounded-xl p-6 space-y-4">
+                  <h2 className="text-2xl font-bold text-yellow-300">Información</h2>
+                  <ul className="space-y-3 text-lg">
+                    <li><strong>Géneros:</strong> {gameDetails.genres || 'N/A'}</li>
+                    <li><strong>Compañía:</strong> {gameDetails.company || 'N/A'}</li>
+                    <li><strong>Tamaño Repack:</strong> {gameDetails.repackSize || 'N/A'}</li>
+                    <li><strong>Tamaño Original:</strong> {gameDetails.originalSize || 'N/A'}</li>
+                    <li><strong>Tiempo instalación:</strong> {gameDetails.installTime || 'N/A'}</li>
+                  </ul>
+                </div>
+
+                {gameDetails.csrinLink && (
+                  <a
+                    href={gameDetails.csrinLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block px-8 py-4 bg-green-600 hover:bg-green-500 text-xl font-bold rounded-xl"
+                  >
+                    Abrir en CS.RIN.RU (Magnet)
+                  </a>
+                )}
+
+                {gameDetails.screenshots && gameDetails.screenshots.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold text-yellow-300 mb-4">Capturas</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                      {gameDetails.screenshots.slice(0, 6).map((src, i) => (
+                        <Image
+                          key={i}
+                          src={src}
+                          alt={`Screenshot ${i + 1}`}
+                          width={600}
+                          height={340}
+                          className="rounded-lg shadow-lg"
+                          unoptimized
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-red-400 text-xl">No se pudieron cargar los detalles del juego</p>
+              <button onClick={resetToHome} className="mt-6 text-yellow-400 underline">
+                Volver a la lista
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Vista normal: lista de juegos
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1
-          className="text-4xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition select-none"
           onClick={resetToHome}
+          className="text-4xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 select-none"
         >
           Heimdallr Games
         </h1>
@@ -112,21 +194,24 @@ export default function Home() {
         </form>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
-          {/* FIXED: games siempre es array → nunca crash */}
           {games.map((game) => (
-            <div key={game.id} className="group cursor-pointer" onClick={() => openGameDetails(game)}>
+            <div
+              key={game.id}
+              onClick={() => openGameDetails(game)}
+              className="group cursor-pointer transform hover:scale-105 transition"
+            >
               <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-lg">
                 <Image
-                  src={game.cover || 'https://via.placeholder.com/300x450/333/fff?text=No+Cover'}
-                  alt={game.title || 'Game'}
+                  src={game.cover}
+                  alt={game.title}
                   width={300}
                   height={450}
-                  className="w-full h-auto object-cover transition transform group-hover:scale-105"
+                  className="w-full h-auto object-cover"
                   unoptimized
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-100 transition">
-                  <p className="absolute bottom-3 left-3 text-sm font-bold text-white line-clamp-2">
-                    {game.title || 'Sin título'}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition">
+                  <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">
+                    {game.title}
                   </p>
                 </div>
               </div>
@@ -134,7 +219,7 @@ export default function Home() {
           ))}
         </div>
 
-        {loading && <p className="text-center mt-8 text-yellow-400">Cargando juegos...</p>}
+        {loading && <p className="text-center mt-8 text-yellow-400">Cargando...</p>}
 
         {hasMore && !loading && (
           <div className="text-center mt-12">
@@ -147,56 +232,6 @@ export default function Home() {
           </div>
         )}
       </div>
-
-      {/* MODAL (igual que antes, con checks) */}
-      {selectedGame && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-2xl max-w-4xl w-full max-h-screen overflow-y-auto p-6 relative">
-            <button onClick={closeModal} className="absolute top-4 right-4 text-white text-3xl hover:text-yellow-400">
-              ×
-            </button>
-            {detailsLoading ? (
-              <p className="text-center text-yellow-400">Cargando detalles...</p>
-            ) : gameDetails ? (
-              <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-yellow-400">{gameDetails.title || selectedGame.title}</h2>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <Image
-                      src={gameDetails.cover || selectedGame.cover || 'https://via.placeholder.com/600x900'}
-                      alt="cover"
-                      width={600}
-                      height={900}
-                      className="rounded-xl shadow-2xl w-full h-auto"
-                      unoptimized
-                    />
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-yellow-300">Información</h3>
-                      <ul className="text-sm space-y-1 mt-2">
-                        <li><strong>Géneros:</strong> {gameDetails.genres || 'N/A'}</li>
-                        <li><strong>Compañía:</strong> {gameDetails.company || 'N/A'}</li>
-                        <li><strong>Tamaño Repack:</strong> {gameDetails.repackSize || 'N/A'}</li>
-                        <li><strong>Tamaño Original:</strong> {gameDetails.originalSize || 'N/A'}</li>
-                        <li><strong>Tiempo instalación:</strong> {gameDetails.installTime || 'N/A'}</li>
-                      </ul>
-                    </div>
-                    {gameDetails.csrinLink && (
-                      <a href={gameDetails.csrinLink} target="_blank" rel="noopener noreferrer"
-                         className="inline-block px-6 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold">
-                        Abrir en CS.RIN.RU (Magnet)
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="text-center text-red-400">Error al cargar detalles</p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
