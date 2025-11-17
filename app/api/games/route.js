@@ -33,7 +33,7 @@ export async function GET(request) {
   let url = 'https://fitgirl-repacks.site/';
   if (search) {
     if (page > 1) {
-      url = https://fitgirl-repacks.site/page/${page}/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))};
+      url = https://fitgirl-repacks.site/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))};
     } else {
       url = https://fitgirl-repacks.site/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))};
     }
