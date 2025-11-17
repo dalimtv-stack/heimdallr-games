@@ -28,10 +28,10 @@ export default function Home() {
       const data = await res.json();
 
       if (reset) {
-        setGames(data.games);
+        setGames(data.games || []);
         setPage(2);
       } else {
-        setGames(prev => [...prev, ...data.games]);
+        setGames(prev => [...prev, ...(data.games || [])]);
         setPage(p + 1);
       }
       setHasMore(data.hasMore);
@@ -62,16 +62,19 @@ export default function Home() {
     fetchGames(true);
   };
 
-  // NUEVO: Abrir modal con datos del juego
+  // FIXED: Abrir modal con check de game.cover
   const openGameDetails = async (game) => {
+    if (!game || !game.id) return; // FIXED: Check básico
     setSelectedGame(game);
     setDetailsLoading(true);
     setGameDetails(null);
 
     try {
       const res = await fetch(`/api/game-details?id=${game.id}`);
-      const data = await res.json();
-      setGameDetails(data);
+      if (res.ok) {
+        const data = await res.json();
+        setGameDetails(data);
+      }
     } catch (err) {
       console.error('Error loading game details:', err);
     } finally {
@@ -112,19 +115,16 @@ export default function Home() {
             <div key={game.id} className="group cursor-pointer" onClick={() => openGameDetails(game)}>
               <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-lg">
                 <Image
-                  src={game.cover}
-                  alt={game.title}
+                  src={game.cover || 'https://via.placeholder.com/300x450/333/fff?text=No+Cover'}
+                  alt={game.title || 'Game'}
                   width={300}
                   height={450}
                   className="w-full h-auto object-cover transition transform group-hover:scale-105"
                   unoptimized={true}
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/300x450/333/fff?text=No+Cover';
-                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-100 transition">
                   <p className="absolute bottom-3 left-3 text-sm font-bold text-white line-clamp-2">
-                    {game.title}
+                    {game.title || 'Untitled'}
                   </p>
                 </div>
               </div>
@@ -146,7 +146,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* MODAL */}
+      {/* MODAL – FIXED: Checks seguros */}
       {selectedGame && (
         <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 rounded-2xl max-w-4xl w-full max-h-screen overflow-y-auto p-6 relative">
@@ -161,15 +161,15 @@ export default function Home() {
               <p className="text-center text-yellow-400">Cargando detalles...</p>
             ) : gameDetails ? (
               <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-yellow-400">{gameDetails.title}</h2>
+                <h2 className="text-3xl font-bold text-yellow-400">{gameDetails.title || selectedGame.title}</h2>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <Image
-                      src={gameDetails.cover}
-                      alt={gameDetails.title}
+                      src={gameDetails.cover || selectedGame.cover || 'https://via.placeholder.com/600x900/333/fff?text=Cover'}
+                      alt={gameDetails.title || selectedGame.title}
                       width={600}
                       height={900}
-                      className="rounded-xl shadow-2xl"
+                      className="rounded-xl shadow-2xl w-full h-auto"
                       unoptimized
                     />
                   </div>
@@ -196,7 +196,7 @@ export default function Home() {
                       </a>
                     )}
 
-                    {gameDetails.screenshots.length > 0 && (
+                    {gameDetails.screenshots && gameDetails.screenshots.length > 0 && (
                       <div>
                         <h3 className="text-xl font-bold text-yellow-300 mt-6">Capturas</h3>
                         <div className="grid grid-cols-2 gap-3 mt-3">
@@ -210,7 +210,7 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              <p className="text-center text-red-400">No se pudieron cargar los detalles</p>
+              <p className="text-center text-red-400">No se pudieron cargar los detalles. <button onClick={() => openGameDetails(selectedGame)} className="underline">Reintentar</button></p>
             )}
           </div>
         </div>
