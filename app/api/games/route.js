@@ -62,7 +62,7 @@ export async function GET(request) {
 
     return NextResponse.json({
       games: games.slice(0, 30),
-      hasMore: games.length >= 10
+      hasMore: games.length >= 9
     });
   } catch (err) {
     console.error(err);
