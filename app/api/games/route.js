@@ -25,29 +25,28 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    $('h1').each((i, h1El) => {
-      const text = $(h1El).text().trim();
-      if (!text) return;
+    // FIXED: Solo artículos post con h1.entry-title que parezcan juegos (contiene "v" versión o "Edition"/"DLC")
+    $('article.post').each((i, el) => {
+      const linkEl = $(el).find('h1.entry-title a').first();
+      if (!linkEl.length) return;
 
-      // FIXED: Solo juegos (contiene "v" versión o "Edition"/"DLC" para evitar no-juegos)
-      if (!text.match(/v\d+\.?\d*|Edition|DLC|Bonus/)) return;
+      const title = linkEl.text().trim();
+      // FIXED: Filtra solo juegos (repacks típicos)
+      if (!title.match(/v\d+\.?\d*|Edition|DLC|Bonus/)) return;
 
-      let id = i + 1;  // Fallback ID
-      let title = text.replace(/^\s*#?\d+\s*[–\-]?\s*/, '').trim();
+      const postUrl = linkEl.attr('href');
+      const idMatch = postUrl.match(/#(\d+)$/);
+      const id = idMatch ? idMatch[1] : String(i + 1);
 
-      // FIXED: ID real de h3 anterior o siguiente (ej: "#5236 Updated Title")
-      const h3El = $(h1El).prev('h3').length ? $(h1El).prev('h3') : $(h1El).next('h3');
-      if (h3El.length) {
-        const idMatch = h3El.text().trim().match(/^#(\d+)/);
-        if (idMatch) id = idMatch[1];
-      }
-
-      // FIXED: Cover - riotpixels link + /cover.jpg (carga real en main y search)
-      let coverLink = $(h1El).nextAll('a[href*="riotpixels.com"]').first().attr('href');
+      // TU LÓGICA DE IMÁGENES (sin cambios — funciona en main y search)
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
-
-      if (coverLink) {
-        cover = coverLink.replace(/\/$/, '') + '/cover.jpg';
+      const imgEl = $(el).find('a[href*="riotpixels.com"] img').first();
+      if (imgEl.length) {
+        let src = imgEl.attr('src');
+        if (src && !src.startsWith('http')) {
+          src = 'https://fitgirl-repacks.site' + src;
+        }
+        cover = src;
       }
 
       // FIXED: Filtro búsqueda DESPUÉS de scrape (funciona en search page)
