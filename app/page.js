@@ -10,23 +10,45 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const [tab, setTab] = useState('novedades'); // Novedades por defecto
   const [expandedId, setExpandedId] = useState(null);
   const [expandedDetails, setExpandedDetails] = useState({});
+
+  // URLs por pestaña
+  const tabUrls = {
+    novedades: 'https://fitgirl-repacks.site/',
+    populares_mes: 'https://fitgirl-repacks.site/pop-repacks/',
+    populares_ano: 'https://fitgirl-repacks.site/popular-repacks-of-the-year/',
+    todos_az: 'https://fitgirl-repacks.site/all-my-repacks-a-zr/',
+  };
 
   const fetchGames = async (reset = false) => {
     setLoading(true);
     const p = reset ? 1 : page;
-    const url = search
-      ? `/api/games?s=${encodeURIComponent(search.trim())}&page=${p}`
-      : `/api/games?page=${p}`;
+    const baseUrl = tabUrls[tab];
+
+    let url = baseUrl;
+    if (search) {
+      if (p > 1) {
+        url = `${baseUrl}page/${p}/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+      } else {
+        url = `${baseUrl}?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+      }
+    } else if (p > 1) {
+      url = `${baseUrl}page/${p}/`;
+    }
 
     try {
-      const res = await fetch(url);
+      const res = await fetch('/api/games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, page: p, search: search.trim() }),
+      });
       const data = await res.json();
 
       const newGames = Array.isArray(data.games) ? data.games : [];
       for (const game of newGames) {
-        game.postUrl = game.postUrl || `https://fitgirl-repacks.site/#${game.id}`; // Asegura postUrl si no viene
+        game.postUrl = game.postUrl || `https://fitgirl-repacks.site/#${game.id}`;
       }
 
       if (reset) {
@@ -45,8 +67,10 @@ export default function Home() {
   };
 
   useEffect(() => {
+    setPage(1);
+    setExpandedId(null);
     fetchGames(true);
-  }, []);
+  }, [tab, search]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -107,14 +131,25 @@ export default function Home() {
     }
   };
 
+  const resetToHome = () => {
+    setSearch('');
+    setTab('novedades');
+    setPage(1);
+    setExpandedId(null);
+    fetchGames(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-12 text-yellow-400">
+        <h1
+          onClick={resetToHome}
+          className="text-5xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition select-none"
+        >
           Heimdallr Games
         </h1>
 
-        <form onSubmit={handleSearch} className="mb-12 flex gap-4 max-w-2xl mx-auto">
+        <form onSubmit={handleSearch} className="mb-8 flex gap-4 max-w-2xl mx-auto">
           <input
             type="text"
             value={search}
@@ -126,6 +161,22 @@ export default function Home() {
             Buscar
           </button>
         </form>
+
+        {/* Pestañas */}
+        <div className="mb-8 flex justify-center gap-4">
+          <button onClick={() => setTab('novedades')} className={`px-6 py-2 rounded-lg ${tab === 'novedades' ? 'bg-yellow-500 text-black' : 'bg-gray-800'}`}>
+            Novedades
+          </button>
+          <button onClick={() => setTab('populares_mes')} className={`px-6 py-2 rounded-lg ${tab === 'populares_mes' ? 'bg-yellow-500 text-black' : 'bg-gray-800'}`}>
+            Populares (mes)
+          </button>
+          <button onClick={() => setTab('populares_ano')} className={`px-6 py-2 rounded-lg ${tab === 'populares_ano' ? 'bg-yellow-500 text-black' : 'bg-gray-800'}`}>
+            Populares (año)
+          </button>
+          <button onClick={() => setTab('todos_az')} className={`px-6 py-2 rounded-lg ${tab === 'todos_az' ? 'bg-yellow-500 text-black' : 'bg-gray-800'}`}>
+            Todos (A-Z)
+          </button>
+        </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
           {games.map((game) => (
@@ -162,16 +213,25 @@ export default function Home() {
                   {expandedDetails[game.id] && !expandedDetails[game.id].loading && !expandedDetails[game.id].error && (
                     <div className="space-y-4">
                       <h3 className="text-2xl font-bold text-yellow-400 mb-4">{expandedDetails[game.id].title}</h3>
+                      <Image
+                        src={expandedDetails[game.id].cover}
+                        alt={expandedDetails[game.id].title}
+                        width={600}
+                        height={900}
+                        className="w-full rounded-lg mb-4"
+                        unoptimized
+                      />
                       <div className="grid grid-cols-2 gap-4 mb-6">
-                        {expandedDetails[game.id].screenshots.map((src, i) => (
+                        {expandedDetails[game.id].screenshots?.slice(0, 4).map((src, i) => (
                           <Image key={i} src={src} alt="" width={300} height={169} className="rounded-lg" unoptimized />
                         ))}
                       </div>
                       <div className="text-sm space-y-2">
-                        <p><strong>Géneros:</strong> {expandedDetails[game.id].genres}</p>
-                        <p><strong>Repack:</strong> {expandedDetails[game.id].repackSize}</p>
-                        <p><strong>Original:</strong> {expandedDetails[game.id].originalSize}</p>
-                        <p><strong>Instalación:</strong> {expandedDetails[game.id].installTime}</p>
+                        <p><strong>Géneros:</strong> {expandedDetails[game.id].genres || 'N/A'}</p>
+                        <p><strong>Compañía:</strong> {expandedDetails[game.id].company || 'N/A'}</p>
+                        <p><strong>Repack:</strong> {expandedDetails[game.id].repackSize || 'N/A'}</p>
+                        <p><strong>Original:</strong> {expandedDetails[game.id].originalSize || 'N/A'}</p>
+                        <p><strong>Instalación:</strong> {expandedDetails[game.id].installTime || 'N/A'}</p>
                       </div>
                       {expandedDetails[game.id].csrinLink && (
                         <a
