@@ -2,73 +2,21 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-// Función para obtener la carátula real desde la página individual del juego
-async function getRealCover(postUrl) {
-  try {
-    const { data } = await axios.get(postUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      timeout: 12000,
-    });
-    const $ = cheerio.load(data);
-
-    // 1. og:image → siempre está y es la carátula perfecta
-    const ogImage = $('meta[property="og:image"]').attr('content');
-    if (ogImage) return ogImage;
-
-    // 2. Imagen destacada del post
-    const featured = $('article img.wp-post-image, article img.size-full').first().attr('src');
-    if (featured) {
-      return featured.startsWith('http') ? featured : `https://fitgirl-repacks.site${featured}`;
-    }
-
-    // 3. Fallback riotpixels/cover.jpg
-    const riotLink = $('a[href*="riotpixels.com"]').first().attr('href');
-    if (riotLink) return riotLink.replace(/\/$/, '') + '/cover.jpg';
-
-    return null;
-  } catch (err) {
-    return null;
-  }
-}
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
-  const search = searchParams.get('s') || '';
   const tab = searchParams.get('tab') || 'novedades';
 
-  // URLs base por pestaña
-  const baseUrls = {
+  const base = {
     novedades: 'https://fitgirl-repacks.site/',
     populares_mes: 'https://fitgirl-repacks.site/pop-repacks/',
     populares_ano: 'https://fitgirl-repacks.site/popular-repacks-of-the-year/',
     todos_az: 'https://fitgirl-repacks.site/all-my-repacks-a-z/',
   };
 
-  let url = baseUrls[tab] || baseUrls.novedades;
-
-  if (search) {
-    const encodedSearch = encodeURIComponent(search.trim().replace(/\s+/g, '+'));
-    if (tab === 'todos_az') {
-      if (page > 1) {
-        url = `https://fitgirl-repacks.site/all-my-repacks-a-z/?lcp_page0=${page}#lcp_instance_0&s=${encodedSearch}`;
-      } else {
-        url = `https://fitgirl-repacks.site/all-my-repacks-a-z/?s=${encodedSearch}`;
-      }
-    } else {
-      if (page > 1) {
-        url = `${baseUrls[tab]}page/${page}/?s=${encodedSearch}`;
-      } else {
-        url = `${baseUrls[tab]}?s=${encodedSearch}`;
-      }
-    }
-  } else if (page > 1) {
-    if (tab === 'todos_az') {
-      url = `https://fitgirl-repacks.site/all-my-repacks-a-z/?lcp_page0=${page}#lcp_instance_0`;
-    } else {
-      url = `${baseUrls[tab]}page/${page}/`;
-    }
-  }
+  let url = base[tab] || base.novedades;
+  if (page > 1 && tab !== 'todos_az') url += `page/${page}/`;
+  if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
 
   try {
     const { data } = await axios.get(url, {
@@ -76,50 +24,48 @@ export async function GET(request) {
       timeout: 20000,
     });
     const $ = cheerio.load(data);
-    const tempGames = [];
-
-    $('article.post, div.post-item').each((i, el) => {
-      const linkEl = $(el).find('h1.entry-title a, h2.entry-title a').first();
-      if (!linkEl.length) return;
-
-      const rawTitle = linkEl.text().trim();
-      if (rawTitle.toLowerCase().includes('upcoming repacks')) return;
-      if (rawTitle.toLowerCase().startsWith('updates digest')) return;
-
-      const title = rawTitle.replace(/\s*–\s*FitGirl Repack.*/i, '');
-      const postUrl = linkEl.attr('href');
-      const idMatch = postUrl.match(/#(\d+)$/);
-      const id = idMatch ? idMatch[1] : String(i + 1);
-
-      tempGames.push({ id, title, postUrl });
-    });
 
     const games = [];
-    const isSearch = !!search;
 
-    for (const game of tempGames) {
-      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(game.title.slice(0, 10));
+    // Cada juego está en un <article class="post">
+    $('article.post').each((_, el) => {
+      const article = $(el);
 
-      if (isSearch) {
-        // En búsqueda → sacamos la carátula real del post individual
-        const realCover = await getRealCover(game.postUrl);
-        if (realCover) cover = realCover;
-      } else {
-        // FIXED: Cover para Novedades - genera desde postUrl (slug único) + /cover.jpg (carga real y única)
-        const slug = game.postUrl.split('/').pop().replace('#', '');
-        cover = `https://en.riotpixels.com/games/${slug}/cover.jpg`;
+      // Título y enlace
+      const link = article.find('h1.entry-title a, h2.entry-title a').first();
+      if (!link.length) return;
+
+      const rawTitle = link.text().trim();
+      if (/upcoming|digest/i.test(rawTitle)) return;
+
+      const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
+      const postUrl = link.attr('href') || '';
+
+      // ID desde el # del enlace
+      const id = postUrl.split('#')[1] || Date.now().toString();
+
+      // COVER: la imagen está en el thumbnail del mismo article
+      let cover = '';
+      const img = article.find('img[src*="imageban.ru"]').first();
+      if (img.length) {
+        cover = img.attr('src') || img.attr('data-src') || img.attr('data-lazy-src') || '';
+        if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
       }
 
-      if (isSearch && !game.title.toLowerCase().includes(search.toLowerCase().trim())) continue;
+      // Fallback si por algún motivo no hay imageban (raro pero posible)
+      if (!cover) {
+        cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
+      }
 
-      games.push({ id: game.id, title: game.title, cover, postUrl: game.postUrl });
-    }
+      games.push({ id, title, cover, postUrl });
+    });
 
-    const hasMore = games.length >= 5;
-
-    return NextResponse.json({ games: games.slice(0, 20), hasMore });
-  } catch (error) {
-    console.error('Scrape error:', error.message);
+    return NextResponse.json({
+      games: games.slice(0, 30),
+      hasMore: games.length >= 10
+    });
+  } catch (err) {
+    console.error(err);
     return NextResponse.json({ games: [], hasMore: false });
   }
 }
