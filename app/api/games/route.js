@@ -35,7 +35,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
   const search = searchParams.get('s') || '';
-  const tab = searchParams.get('tab') || 'novedades'; // Novedades por defecto
+  const tab = searchParams.get('tab') || 'novedades';
 
   // URLs base por pestaña
   const baseUrls = {
@@ -50,7 +50,6 @@ export async function GET(request) {
   if (search) {
     const encodedSearch = encodeURIComponent(search.trim().replace(/\s+/g, '+'));
     if (tab === 'todos_az') {
-      // Paginación especial para A-Z: ?lcp_page0=N#s
       if (page > 1) {
         url = `https://fitgirl-repacks.site/all-my-repacks-a-z/?lcp_page0=${page}#lcp_instance_0&s=${encodedSearch}`;
       } else {
@@ -79,7 +78,7 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const tempGames = [];
 
-    // FIXED: Selectores actualizados para HTML de noviembre 2025 (h2.entry-title para títulos, img en post-thumbnail)
+    // FIXED: Selectores actualizados para Novedades (h2.entry-title, img en post-thumbnail)
     $('article.post, div.post-item').each((i, el) => {
       const linkEl = $(el).find('h1.entry-title a, h2.entry-title a').first();
       if (!linkEl.length) return;
@@ -107,9 +106,9 @@ export async function GET(request) {
         const realCover = await getRealCover(game.postUrl);
         if (realCover) cover = realCover;
       } else {
-        // En página principal → miniatura rápida (como siempre)
+        // FIXED: Cover para Novedades - img en post-thumbnail o img en article
         const article = $(`a[href="${game.postUrl}"]`).closest('article, div.post-item');
-        const imgEl = article.find('img[src*="imageban.ru"], img[src*="riotpixels.com"], img.wp-post-image').first();
+        const imgEl = article.find('.post-thumbnail img, img.wp-post-image, img[src*="imageban.ru"], img[src*="riotpixels.com"]').first();
         if (imgEl.length) {
           let src = imgEl.attr('src');
           if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
