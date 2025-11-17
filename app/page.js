@@ -10,40 +10,20 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  const [tab, setTab] = useState('novedades'); // Novedades por defecto
+  const [tab, setTab] = useState('novedades');
   const [expandedId, setExpandedId] = useState(null);
   const [expandedDetails, setExpandedDetails] = useState({});
-
-  // URLs por pestaña
-  const tabUrls = {
-    novedades: 'https://fitgirl-repacks.site/',
-    populares_mes: 'https://fitgirl-repacks.site/pop-repacks/',
-    populares_ano: 'https://fitgirl-repacks.site/popular-repacks-of-the-year/',
-    todos_az: 'https://fitgirl-repacks.site/all-my-repacks-a-zr/',
-  };
 
   const fetchGames = async (reset = false) => {
     setLoading(true);
     const p = reset ? 1 : page;
-    const baseUrl = tabUrls[tab];
-
-    let url = baseUrl;
-    if (search) {
-      if (p > 1) {
-        url = `${baseUrl}page/${p}/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
-      } else {
-        url = `${baseUrl}?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
-      }
-    } else if (p > 1) {
-      url = `${baseUrl}page/${p}/`;
-    }
+    const params = new URLSearchParams();
+    params.set('tab', tab);
+    if (search) params.set('s', search.trim());
+    params.set('page', p);
 
     try {
-      const res = await fetch('/api/games', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, page: p, search: search.trim() }),
-      });
+      const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
 
       const newGames = Array.isArray(data.games) ? data.games : [];
@@ -163,19 +143,21 @@ export default function Home() {
         </form>
 
         {/* Pestañas */}
-        <div className="mb-8 flex justify-center gap-4">
-          <button onClick={() => setTab('novedades')} className={`px-6 py-2 rounded-lg ${tab === 'novedades' ? 'bg-yellow-500 text-black' : 'bg-gray-800'}`}>
-            Novedades
-          </button>
-          <button onClick={() => setTab('populares_mes')} className={`px-6 py-2 rounded-lg ${tab === 'populares_mes' ? 'bg-yellow-500 text-black' : 'bg-gray-800'}`}>
-            Populares (mes)
-          </button>
-          <button onClick={() => setTab('populares_ano')} className={`px-6 py-2 rounded-lg ${tab === 'populares_ano' ? 'bg-yellow-500 text-black' : 'bg-gray-800'}`}>
-            Populares (año)
-          </button>
-          <button onClick={() => setTab('todos_az')} className={`px-6 py-2 rounded-lg ${tab === 'todos_az' ? 'bg-yellow-500 text-black' : 'bg-gray-800'}`}>
-            Todos (A-Z)
-          </button>
+        <div className="mb-8 flex justify-center gap-2">
+          {[
+            { key: 'novedades', label: 'Novedades' },
+            { key: 'populares_mes', label: 'Populares (mes)' },
+            { key: 'populares_ano', label: 'Populares (año)' },
+            { key: 'todos_az', label: 'Todos (A-Z)' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-6 py-3 rounded-lg font-bold transition ${tab === key ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
