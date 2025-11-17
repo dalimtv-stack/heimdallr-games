@@ -1,8 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import axios from 'axios';
-import * as cheerio from 'cheerio';
 
 export default function Home() {
   const [games, setGames] = useState([]);
@@ -10,26 +8,53 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  const [tab, setTab] = useState('novedades');
+  const [tab, setTab] = useState('novedades'); // Novedades por defecto
   const [expandedId, setExpandedId] = useState(null);
   const [expandedDetails, setExpandedDetails] = useState({});
+
+  // URLs base por pestaña (sin cambiar el scraper)
+  const tabUrls = {
+    novedades: '',
+    populares_mes: '/pop-repacks/',
+    populares_ano: '/popular-repacks-of-the-year/',
+    todos_az: '/all-my-repacks-a-z/',
+  };
 
   const fetchGames = async (reset = false) => {
     setLoading(true);
     const p = reset ? 1 : page;
-    const params = new URLSearchParams();
-    params.set('tab', tab);
-    if (search) params.set('s', search.trim());
-    params.set('page', p);
+    const baseUrl = tabUrls[tab] || '';
+
+    let url = '';
+    if (search) {
+      const encodedSearch = encodeURIComponent(search.trim().replace(/\s+/g, '+'));
+      if (tab === 'todos_az') {
+        if (p > 1) {
+          url = `/api/games?tab=${tab}&s=${encodedSearch}&page=${p}&az_pagination=lcp_page0=${p}`;
+        } else {
+          url = `/api/games?tab=${tab}&s=${encodedSearch}`;
+        }
+      } else {
+        if (p > 1) {
+          url = `/api/games?tab=${tab}&s=${encodedSearch}&page=${p}`;
+        } else {
+          url = `/api/games?tab=${tab}&s=${encodedSearch}`;
+        }
+      }
+    } else if (p > 1) {
+      if (tab === 'todos_az') {
+        url = `/api/games?tab=${tab}&page=${p}&az_pagination=lcp_page0=${p}`;
+      } else {
+        url = `/api/games?tab=${tab}&page=${p}`;
+      }
+    } else {
+      url = `/api/games?tab=${tab}`;
+    }
 
     try {
-      const res = await fetch(`/api/games?${params.toString()}`);
+      const res = await fetch(url);
       const data = await res.json();
-
       const newGames = Array.isArray(data.games) ? data.games : [];
-      for (const game of newGames) {
-        game.postUrl = game.postUrl || `https://fitgirl-repacks.site/#${game.id}`;
-      }
 
       if (reset) {
         setGames(newGames);
@@ -40,7 +65,8 @@ export default function Home() {
       }
       setHasMore(data.hasMore);
     } catch (err) {
-      console.error('Error cargando juegos:', err);
+      console.error('Error en fetchGames:', err);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -50,7 +76,7 @@ export default function Home() {
     setPage(1);
     setExpandedId(null);
     fetchGames(true);
-  }, [tab, search]);
+  }, [tab]);
 
   const handleSearch = (e) => {
     e.preventDefault();
