@@ -7,10 +7,18 @@ export async function GET(request) {
   const page = parseInt(searchParams.get('page') || '1');
   const search = searchParams.get('s') || '';
 
+  // FIXED: Construcción correcta de la URL
   let url = 'https://fitgirl-repacks.site/';
+  
   if (search) {
-    url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+    // Si hay búsqueda → siempre incluir ?s=...
+    if (page > 1) {
+      url = `https://fitgirl-repacks.site/page/${page}/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+    } else {
+      url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+    }
   } else if (page > 1) {
+    // Solo paginación normal (sin búsqueda)
     url = `https://fitgirl-repacks.site/page/${page}/`;
   }
 
@@ -31,7 +39,7 @@ export async function GET(request) {
 
       const rawTitle = linkEl.text().trim();
 
-      // FIXED: Excluir "Upcoming Repacks" y "Updates Digest"
+      // Excluir Upcoming Repacks y Updates Digest
       if (rawTitle.toLowerCase().includes('upcoming repacks')) return;
       if (rawTitle.toLowerCase().startsWith('updates digest')) return;
 
@@ -41,7 +49,7 @@ export async function GET(request) {
       const idMatch = postUrl.match(/#(\d+)$/);
       const id = idMatch ? idMatch[1] : String(i + 1);
 
-      // TU LÓGICA DE IMÁGENES (que ya funciona perfecto)
+      // TU LÓGICA DE IMÁGENES (funciona en main y en búsqueda)
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
       const imgEl = $(el).find('a[href*="riotpixels.com"] img').first();
       if (imgEl.length) {
@@ -55,7 +63,7 @@ export async function GET(request) {
       allGames.push({ id, title, cover });
     });
 
-    // Filtro de búsqueda DESPUÉS del scrape
+    // Filtro búsqueda DESPUÉS del scrape (por si acaso)
     const games = search 
       ? allGames.filter(game => game.title.toLowerCase().includes(search.toLowerCase().trim()))
       : allGames;
