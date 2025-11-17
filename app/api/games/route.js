@@ -1,91 +1,67 @@
+// app/api/game-details/route.js
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-async function getRealCover(postUrl) {
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
+
+  // URL real del repack (la que ya usamos en el scraper principal)
+  const postUrl = `https://fitgirl-repacks.site/#${id}`;
+
   try {
     const { data } = await axios.get(postUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      timeout: 12000,
+      timeout: 15000,
     });
     const $ = cheerio.load(data);
-    const ogImage = $('meta[property="og:image"]').attr('content');
-    if (ogImage) return ogImage;
-    const featured = $('article img.wp-post-image, article img.size-full').first().attr('src');
-    if (featured) return featured.startsWith('http') ? featured : `https://fitgirl-repacks.site${featured}`;
-    const riotLink = $('a[href*="riotpixels.com"]').first().attr('href');
-    if (riotLink) return riotLink.replace(/\/$/, '') + '/cover.jpg';
-    return null;
-  } catch {
-    return null;
-  }
-}
 
-export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get('page') || '1');
-  const search = searchParams.get('s') || '';
+    const title = $('h1.entry-title').text().trim().replace(/– FitGirl Repack.*/i, '') || 'Sin título';
 
-  let url = 'https://fitgirl-repacks.site/';
-  if (search) {
-    url = page > 1 
-      ? `https://fitgirl-repacks.site/page/${page}/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`
-      : `https://fitgirl-repacks.site/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
-  } else if (page > 1) {
-    url = `https://fitgirl-repacks.site/page/${page}/`;
-  }
+    const cover = $('meta[property="og:image"]').attr('content') || '';
 
-  try {
-    const { data } = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 20000 });
-    const $ = cheerio.load(data);
-    const tempGames = [];
+    let genres = 'N/A';
+    let company = 'N/A';
+    let repackSize = 'N/A';
+    let originalSize = 'N/A';
+    let installTime = 'N/A';
 
-    $('article.post').each((i, el) => {
-      const linkEl = $(el).find('h1.entry-title a').first();
-      if (!linkEl.length) return;
-
-      const rawTitle = linkEl.text().trim();
-      if (rawTitle.toLowerCase().includes('upcoming repacks')) return;
-      if (rawTitle.toLowerCase().startsWith('updates digest')) return;
-
-      const title = rawTitle.replace(/\s*–\s*FitGirl Repack.*/i, '');
-      const postUrl = linkEl.attr('href');
-      const idMatch = postUrl.match(/#(\d+)$/);
-      const id = idMatch ? idMatch[1] : String(i + 1);
-
-      tempGames.push({ id, title, postUrl });
+    $('article p, article li').each((i, el) => {
+      const text = $(el).text();
+      if (text.includes('Genres/Tags:')) genres = text.replace('Genres/Tags:', '').trim();
+      if (text.includes('Company:') || text.includes('Companies:')) company = text.replace(/Compan(y|ies):/g, '').trim();
+      if (text.includes('Repack Size:')) repackSize = text.replace('Repack Size:', '').trim();
+      if (text.includes('Original Size:')) originalSize = text.replace('Original Size:', '').trim();
+      if (text.includes('Installation time:')) installTime = text.replace('Installation time:', '').trim();
     });
 
-    const games = [];
-    const isSearch = !!search;
+    const csrinLink = $('a[href*="cs.rin.ru"]').attr('href') || '';
 
-    for (const game of tempGames) {
-      let cover = 'https://via.placeholder.com/300x450/333/fff?text=No+Cover';
-
-      if (isSearch) {
-        const realCover = await getRealCover(game.postUrl);
-        if (realCover) cover = realCover;
-      } else {
-        const article = $(`a[href="${game.postUrl}"]`).closest('article');
-        const imgEl = article.find('a[href*="riotpixels.com"] img').first();
-        if (imgEl.length) {
-          let src = imgEl.attr('src');
-          if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
-          cover = src;
-        }
+    const screenshots = [];
+    $('article img[src*="-1024x"]').each((i, el) => {
+      let src = $(el).attr('src');
+      if (src) {
+        src = src.replace('-1024x', '').replace('-scaled', '');
+        if (src.startsWith('/')) src = 'https://fitgirl-repacks.site' + src;
+        screenshots.push(src);
       }
+    });
 
-      if (isSearch && !game.title.toLowerCase().includes(search.toLowerCase().trim())) continue;
-
-      games.push({ id: game.id, title: game.title, cover });
-    }
-
-    return NextResponse.json({ 
-      games: games.slice(0, 20), 
-      hasMore: games.length >= 5 
+    return NextResponse.json({
+      title,
+      cover,
+      genres,
+      company,
+      repackSize,
+      originalSize,
+      installTime,
+      csrinLink,
+      screenshots: screenshots.slice(0, 6),
     });
   } catch (error) {
-    console.error('Scrape error:', error.message);
-    return NextResponse.json({ games: [], hasMore: false });
+    console.error('Error details:', error.message);
+    return NextResponse.json({ error: 'Fallo al cargar' }, { status: 500 });
   }
 }
