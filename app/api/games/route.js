@@ -97,7 +97,8 @@ export async function GET(request) {
     const games = [];
     const isSearch = !!search;
 
-    for (const game of tempGames) {
+    for (let i = 0; i < tempGames.length; i++) {
+      const game = tempGames[i];
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(game.title.slice(0, 10));
 
       if (isSearch) {
@@ -105,15 +106,16 @@ export async function GET(request) {
         const realCover = await getRealCover(game.postUrl);
         if (realCover) cover = realCover;
       } else {
-        // FIXED: Cover para Novedades - img en post-thumbnail o cualquier img en article (evita reutilización)
-        const article = $(`a[href="${game.postUrl}"]`).closest('article, div.post-item');
+        // FIXED: Cover para Novedades - usa el i-ésimo article para selector único (evita reutilización)
+        const allArticles = $('article.post, div.post-item');
+        const article = allArticles.eq(i);
         const imgEl = article.find('.post-thumbnail img, img.wp-post-image, img[src*="imageban.ru"], img[src*="riotpixels.com"]').first();
         if (imgEl.length) {
           let src = imgEl.attr('src');
           if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
           cover = src;
         } else {
-          // Fallback adicional para primeros juegos: primer img en el article
+          // Fallback adicional: primer img en el i-ésimo article
           const fallbackImg = article.find('img').first();
           if (fallbackImg.length) {
             let src = fallbackImg.attr('src');
