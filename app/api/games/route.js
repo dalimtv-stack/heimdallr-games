@@ -15,7 +15,7 @@ async function getRealCover(postUrl) {
     // 2. Imagen destacada del post
     const featured = $('article img.wp-post-image, article img.size-full').first().attr('src');
     if (featured) {
-      return featured.startsWith('http') ? featured : https://fitgirl-repacks.site${featured};
+      return featured.startsWith('http') ? featured : 'https://fitgirl-repacks.site' + featured;
     }
     // 3. Fallback riotpixels/cover.jpg
     const riotLink = $('a[href*="riotpixels.com"]').first().attr('href');
