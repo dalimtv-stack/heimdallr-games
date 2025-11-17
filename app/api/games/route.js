@@ -2,30 +2,28 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-// Función auxiliar para obtener la carátula desde la página individual del juego
-async function getCoverFromPost(url) {
+// Función para obtener la carátula real desde la página individual del juego
+async function getRealCover(postUrl) {
   try {
-    const { data } = await axios.get(url, {
+    const { data } = await axios.get(postUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      timeout: 10000
+      timeout: 12000,
     });
     const $ = cheerio.load(data);
 
-    // 1. Intenta con la imagen destacada grande
-    const featuredImg = $('meta[property="og:image"]').attr('content');
-    if (featuredImg && featuredImg.includes('fitgirl-repacks.site')) return featuredImg;
+    // 1. og:image (siempre está y es la carátula grande)
+    const ogImage = $('meta[property="og:image"]').attr('content');
+    if (ogImage) return ogImage;
 
-    // 2. Intenta con el primer img grande dentro del post
-    const imgInPost = $('article img.wp-post-image, article img.size-full').first().attr('src');
-    if (imgInPost) {
-      return imgInPost.startsWith('http') ? imgInPost : 'https://fitgirl-repacks.site' + imgInPost;
+    // 2. Imagen destacada del post
+    const featured = $('article img.wp-post-image, article img.size-full').first().attr('src');
+    if (featured) {
+      return featured.startsWith('http') ? featured : OSTileMap.fitgirl-repacks.site${featured};
     }
 
     // 3. Fallback riotpixels/cover.jpg
     const riotLink = $('a[href*="riotpixels.com"]').first().attr('href');
-    if (riotLink) {
-      return riotLink.replace(/\/$/, '') + '/cover.jpg';
-    }
+    if (riotLink) return riotLink.replace(/\/$/, '') + '/cover.jpg';
 
     return null;
   } catch (err) {
@@ -38,6 +36,7 @@ export async function GET(request) {
   const page = parseInt(searchParams.get('page') || '1');
   const search = searchParams.get('s') || '';
 
+  // Construcción correcta de la URL (paginación en búsqueda: page/2/?s=war)
   let url = 'https://fitgirl-repacks.site/';
   if (search) {
     if (page > 1) {
@@ -52,7 +51,7 @@ export async function GET(request) {
   try {
     const { data } = await axios.get(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      timeout: 20000
+      timeout: 20000,
     });
 
     const $ = cheerio.load(data);
@@ -81,11 +80,11 @@ export async function GET(request) {
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(game.title.slice(0, 10));
 
       if (isSearch) {
-        // En búsqueda: scrapeamos la página individual para sacar la carátula real
-        const realCover = await getCoverFromPost(game.postUrl);
+        // En búsqueda: sacamos la carátula real del post individual
+        const realCover = await getRealCover(game.postUrl);
         if (realCover) cover = realCover;
       } else {
-        // En página principal: usamos la miniatura rápida (más rápido)
+        // En página principal: usamos la miniatura rápida (como antes)
         const imgEl = $(`a[href="${game.postUrl}"]`).closest('article').find('a[href*="riotpixels.com"] img').first();
         if (imgEl && imgEl.length) {
           let src = imgEl.attr('src');
@@ -94,7 +93,7 @@ export async function GET(request) {
         }
       }
 
-      // Filtro final de búsqueda (por si acaso)
+      // Filtro final por si acaso
       if (isSearch && !game.title.toLowerCase().includes(search.toLowerCase().trim())) continue;
 
       games.push({ id: game.id, title: game.title, cover });
