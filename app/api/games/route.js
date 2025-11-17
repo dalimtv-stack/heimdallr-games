@@ -37,7 +37,7 @@ export async function GET(request) {
   const search = searchParams.get('s') || '';
   const tab = searchParams.get('tab') || 'novedades'; // Novedades por defecto
 
-  // URLs por pestaña
+  // URLs base por pestaña
   const baseUrls = {
     novedades: 'https://fitgirl-repacks.site/',
     populares_mes: 'https://fitgirl-repacks.site/pop-repacks/',
@@ -79,8 +79,9 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const tempGames = [];
 
-    $('article.post').each((i, el) => {
-      const linkEl = $(el).find('h1.entry-title a').first();
+    // FIXED: Selectores actualizados para HTML de noviembre 2025 (h2.entry-title para títulos, img en post-thumbnail)
+    $('article.post, div.post-item').each((i, el) => {
+      const linkEl = $(el).find('h1.entry-title a, h2.entry-title a').first();
       if (!linkEl.length) return;
 
       const rawTitle = linkEl.text().trim();
@@ -107,8 +108,8 @@ export async function GET(request) {
         if (realCover) cover = realCover;
       } else {
         // En página principal → miniatura rápida (como siempre)
-        const article = $(`a[href="${game.postUrl}"]`).closest('article');
-        const imgEl = article.find('a[href*="riotpixels.com"] img').first();
+        const article = $(`a[href="${game.postUrl}"]`).closest('article, div.post-item');
+        const imgEl = article.find('img[src*="imageban.ru"], img[src*="riotpixels.com"], img.wp-post-image').first();
         if (imgEl.length) {
           let src = imgEl.attr('src');
           if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
