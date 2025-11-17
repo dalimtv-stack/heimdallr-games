@@ -27,11 +27,9 @@ export async function GET(request) {
 
     const games = [];
 
-    // Cada juego está en un <article class="post">
     $('article.post').each((_, el) => {
       const article = $(el);
 
-      // Título y enlace
       const link = article.find('h1.entry-title a, h2.entry-title a').first();
       if (!link.length) return;
 
@@ -40,11 +38,8 @@ export async function GET(request) {
 
       const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
       const postUrl = link.attr('href') || '';
-
-      // ID desde el # del enlace
       const id = postUrl.split('#')[1] || Date.now().toString();
 
-      // COVER: la imagen está en el thumbnail del mismo article
       let cover = '';
       const img = article.find('img[src*="imageban.ru"]').first();
       if (img.length) {
@@ -52,7 +47,6 @@ export async function GET(request) {
         if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
       }
 
-      // Fallback si por algún motivo no hay imageban (raro pero posible)
       if (!cover) {
         cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
       }
@@ -60,9 +54,12 @@ export async function GET(request) {
       games.push({ id, title, cover, postUrl });
     });
 
+    const totalFound = games.length;
+    const hasMore = totalFound >= 9;   // ← ESTA ES LA CLAVE
+
     return NextResponse.json({
       games: games.slice(0, 30),
-      hasMore: games.length >= 9
+      hasMore
     });
   } catch (err) {
     console.error(err);
