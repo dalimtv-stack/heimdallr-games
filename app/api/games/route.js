@@ -24,6 +24,7 @@ async function getRealCover(postUrl) {
     // 3. Fallback riotpixels/cover.jpg
     const riotLink = $('a[href*="riotpixels.com"]').first().attr('href');
     if (riotLink) return riotLink.replace(/\/$/, '') + '/cover.jpg';
+
     return null;
   } catch (err) {
     return null;
@@ -34,17 +35,40 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
   const search = searchParams.get('s') || '';
+  const tab = searchParams.get('tab') || 'novedades'; // Novedades por defecto
 
-  // URL correcta para paginación en búsqueda: page/2/?s=war
-  let url = 'https://fitgirl-repacks.site/';
+  // URLs por pestaña
+  const baseUrls = {
+    novedades: 'https://fitgirl-repacks.site/',
+    populares_mes: 'https://fitgirl-repacks.site/pop-repacks/',
+    populares_ano: 'https://fitgirl-repacks.site/popular-repacks-of-the-year/',
+    todos_az: 'https://fitgirl-repacks.site/all-my-repacks-a-z/',
+  };
+
+  let url = baseUrls[tab] || baseUrls.novedades;
+
   if (search) {
-    if (page > 1) {
-      url = `https://fitgirl-repacks.site/page/${page}/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+    const encodedSearch = encodeURIComponent(search.trim().replace(/\s+/g, '+'));
+    if (tab === 'todos_az') {
+      // Paginación especial para A-Z: ?lcp_page0=N#s
+      if (page > 1) {
+        url = `https://fitgirl-repacks.site/all-my-repacks-a-z/?lcp_page0=${page}#lcp_instance_0&s=${encodedSearch}`;
+      } else {
+        url = `https://fitgirl-repacks.site/all-my-repacks-a-z/?s=${encodedSearch}`;
+      }
     } else {
-      url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(search.trim().replace(/\s+/g, '+'))}`;
+      if (page > 1) {
+        url = `${baseUrls[tab]}page/${page}/?s=${encodedSearch}`;
+      } else {
+        url = `${baseUrls[tab]}?s=${encodedSearch}`;
+      }
     }
   } else if (page > 1) {
-    url = `https://fitgirl-repacks.site/page/${page}/`;
+    if (tab === 'todos_az') {
+      url = `https://fitgirl-repacks.site/all-my-repacks-a-z/?lcp_page0=${page}#lcp_instance_0`;
+    } else {
+      url = `${baseUrls[tab]}page/${page}/`;
+    }
   }
 
   try {
