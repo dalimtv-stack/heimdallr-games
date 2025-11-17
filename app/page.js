@@ -23,10 +23,10 @@ export default function Home() {
       const data = await res.json();
 
       if (reset) {
-        setGames(data.games);  // FIXED: Reset lista al buscar o inicio
+        setGames(data.games);
         setPage(2);
       } else {
-        setGames(prev => [...prev, ...data.games]);  // Append para paginación
+        setGames(prev => [...prev, ...data.games]);
         setPage(p + 1);
       }
       setHasMore(data.hasMore);
@@ -43,18 +43,30 @@ export default function Home() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setPage(1);  // FIXED: Reset page al buscar
+    setPage(1);
     fetchGames(true);
   };
 
   const loadMore = () => {
-    fetchGames();  // FIXED: No reset, append
+    fetchGames();
+  };
+
+  // NUEVO: Reset completo al hacer clic en el título
+  const resetToHome = () => {
+    setSearch('');
+    document.querySelector('input')?.focus(); // opcional: pone foco en el input
+    setPage(1);
+    fetchGames(true);
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-yellow-400">
+        {/* FIXED: Título clicable */}
+        <h1 
+          className="text-4xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition"
+          onClick={resetToHome}
+        >
           Heimdallr Games
         </h1>
 
