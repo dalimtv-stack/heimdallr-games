@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 export default function Home() {
   const [games, setGames] = useState([]);
@@ -8,53 +10,26 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  const [tab, setTab] = useState('novedades'); // Novedades por defecto
+  const [tab, setTab] = useState('novedades');
   const [expandedId, setExpandedId] = useState(null);
   const [expandedDetails, setExpandedDetails] = useState({});
-
-  // URLs base por pestaña (sin cambiar el scraper)
-  const tabUrls = {
-    novedades: '',
-    populares_mes: '/pop-repacks/',
-    populares_ano: '/popular-repacks-of-the-year/',
-    todos_az: '/all-my-repacks-a-z/',
-  };
 
   const fetchGames = async (reset = false) => {
     setLoading(true);
     const p = reset ? 1 : page;
-    const baseUrl = tabUrls[tab] || '';
-
-    let url = '';
-    if (search) {
-      const encodedSearch = encodeURIComponent(search.trim().replace(/\s+/g, '+'));
-      if (tab === 'todos_az') {
-        if (p > 1) {
-          url = `/api/games?tab=${tab}&s=${encodedSearch}&page=${p}&az_pagination=lcp_page0=${p}`;
-        } else {
-          url = `/api/games?tab=${tab}&s=${encodedSearch}`;
-        }
-      } else {
-        if (p > 1) {
-          url = `/api/games?tab=${tab}&s=${encodedSearch}&page=${p}`;
-        } else {
-          url = `/api/games?tab=${tab}&s=${encodedSearch}`;
-        }
-      }
-    } else if (p > 1) {
-      if (tab === 'todos_az') {
-        url = `/api/games?tab=${tab}&page=${p}&az_pagination=lcp_page0=${p}`;
-      } else {
-        url = `/api/games?tab=${tab}&page=${p}`;
-      }
-    } else {
-      url = `/api/games?tab=${tab}`;
-    }
+    const params = new URLSearchParams();
+    params.set('tab', tab);
+    if (search) params.set('s', search.trim());
+    params.set('page', p);
 
     try {
-      const res = await fetch(url);
+      const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
+
       const newGames = Array.isArray(data.games) ? data.games : [];
+      for (const game of newGames) {
+        game.postUrl = game.postUrl || `https://fitgirl-repacks.site/#${game.id}`;
+      }
 
       if (reset) {
         setGames(newGames);
@@ -65,8 +40,7 @@ export default function Home() {
       }
       setHasMore(data.hasMore);
     } catch (err) {
-      console.error('Error en fetchGames:', err);
-      setHasMore(false);
+      console.error('Error cargando juegos:', err);
     } finally {
       setLoading(false);
     }
@@ -76,7 +50,7 @@ export default function Home() {
     setPage(1);
     setExpandedId(null);
     fetchGames(true);
-  }, [tab]);
+  }, [tab, search]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -218,63 +192,4 @@ export default function Home() {
                   {expandedDetails[game.id]?.error && (
                     <p className="text-center text-red-400">Error al cargar detalles</p>
                   )}
-                  {expandedDetails[game.id] && !expandedDetails[game.id].loading && !expandedDetails[game.id].error && (
-                    <div className="space-y-4">
-                      <h3 className="text-2xl font-bold text-yellow-400 mb-4">{expandedDetails[game.id].title}</h3>
-                      <Image
-                        src={expandedDetails[game.id].cover}
-                        alt={expandedDetails[game.id].title}
-                        width={600}
-                        height={900}
-                        className="w-full rounded-lg mb-4"
-                        unoptimized
-                      />
-                      <div className="grid grid-cols-2 gap-4 mb-6">
-                        {expandedDetails[game.id].screenshots?.slice(0, 4).map((src, i) => (
-                          <Image key={i} src={src} alt="" width={300} height={169} className="rounded-lg" unoptimized />
-                        ))}
-                      </div>
-                      <div className="text-sm space-y-2">
-                        <p><strong>Géneros:</strong> {expandedDetails[game.id].genres || 'N/A'}</p>
-                        <p><strong>Compañía:</strong> {expandedDetails[game.id].company || 'N/A'}</p>
-                        <p><strong>Repack:</strong> {expandedDetails[game.id].repackSize || 'N/A'}</p>
-                        <p><strong>Original:</strong> {expandedDetails[game.id].originalSize || 'N/A'}</p>
-                        <p><strong>Instalación:</strong> {expandedDetails[game.id].installTime || 'N/A'}</p>
-                      </div>
-                      {expandedDetails[game.id].csrinLink && (
-                        <a
-                          href={expandedDetails[game.id].csrinLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-6 block text-center py-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold"
-                        >
-                          Descargar (Magnet)
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {loading && games.length === 0 && (
-          <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
-        )}
-
-        {hasMore && games.length > 0 && (
-          <div className="text-center mt-16">
-            <button
-              onClick={loadMore}
-              disabled={loading}
-              className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
-            >
-              {loading ? 'Cargando...' : 'Cargar más'}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+                  {expandedDetails[game.id] && !expandedDetails
