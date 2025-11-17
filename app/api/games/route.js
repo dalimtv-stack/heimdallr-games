@@ -24,7 +24,6 @@ async function getRealCover(postUrl) {
     // 3. Fallback riotpixels/cover.jpg
     const riotLink = $('a[href*="riotpixels.com"]').first().attr('href');
     if (riotLink) return riotLink.replace(/\/$/, '') + '/cover.jpg';
-
     return null;
   } catch (err) {
     return null;
@@ -76,12 +75,14 @@ export async function GET(request) {
     const isSearch = !!search;
 
     for (const game of tempGames) {
-      let cover = 'https://via.placeholder.com/300x450/333/fff?text=No+Cover';
+      let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(game.title.slice(0, 10));
 
       if (isSearch) {
+        // En búsqueda → sacamos la carátula real del post individual
         const realCover = await getRealCover(game.postUrl);
         if (realCover) cover = realCover;
       } else {
+        // En página principal → miniatura rápida (como siempre)
         const article = $(`a[href="${game.postUrl}"]`).closest('article');
         const imgEl = article.find('a[href*="riotpixels.com"] img').first();
         if (imgEl.length) {
@@ -93,7 +94,7 @@ export async function GET(request) {
 
       if (isSearch && !game.title.toLowerCase().includes(search.toLowerCase().trim())) continue;
 
-      games.push({ id: game.id, title: game.title, cover, postUrl });
+      games.push({ id: game.id, title: game.title, cover, postUrl: game.postUrl });
     }
 
     const hasMore = games.length >= 5;
