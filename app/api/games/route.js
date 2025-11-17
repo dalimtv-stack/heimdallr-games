@@ -23,18 +23,17 @@ export async function GET(request) {
     });
 
     const $ = cheerio.load(data);
-    const games = [];
+    const allGames = [];  // FIXED: Scrapea todo primero
 
-    // FIXED: Solo artículos post con h1.entry-title que parezcan juegos (contiene "v" versión o "Edition"/"DLC")
+    // FIXED: Scrapea TODOS los article.post (main y search tienen misma estructura)
     $('article.post').each((i, el) => {
       const linkEl = $(el).find('h1.entry-title a').first();
       if (!linkEl.length) return;
 
-      const title = linkEl.text().trim();
-      // FIXED: Filtra solo juegos (repacks típicos)
-      if (!title.match(/v\d+\.?\d*|Edition|DLC|Bonus/)) return;
-
       const postUrl = linkEl.attr('href');
+      const title = linkEl.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+
+      // ID desde # en URL
       const idMatch = postUrl.match(/#(\d+)$/);
       const id = idMatch ? idMatch[1] : String(i + 1);
 
@@ -49,11 +48,14 @@ export async function GET(request) {
         cover = src;
       }
 
-      // FIXED: Filtro búsqueda DESPUÉS de scrape (funciona en search page)
-      if (search && !title.toLowerCase().includes(search.toLowerCase().trim())) return;
-
-      games.push({ id, title, cover });
+      // FIXED: Añade a lista temporal (sin filtro aún)
+      allGames.push({ id, title, cover });
     });
+
+    // FIXED: Filtro búsqueda DESPUÉS de scrape (ahora extrae covers ANTES)
+    const games = search ? allGames.filter(game => 
+      game.title.toLowerCase().includes(search.toLowerCase().trim())
+    ) : allGames;
 
     const hasMore = games.length >= 5;
 
