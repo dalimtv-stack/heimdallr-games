@@ -6,27 +6,26 @@ export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true); // ← empieza en true
+  const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
-  const [gameDetails, setGameDetails] = useState({});
+  const [details, setDetails] = useState({});
 
-  // Carga juegos (usa exactamente tu API que ya funciona)
   const fetchGames = async (reset = false) => {
-    if (loading && !reset) return;
+    if (loading) return;
     setLoading(true);
 
-    const currentPage = reset ? 1 : page;
-    const url = search
-      ? `/api/games?s=${encodeURIComponent(search.trim())}&page=${currentPage}`
-      : `/api/games?page=${currentPage}`;
+    const p = reset ? 1 : page;
+    const url = search 
+      ? `/api/games?s=${encodeURIComponent(search.trim())}&page=${p}`
+      : `/api/games?page=${p}`;
 
     try {
-      const res = await fetch(url);
+      const res = await fetch(url + (url.includes('?') ? '&t=' : '?t=') + Date.now()); // cache-buster
       const data = await res.json();
-
+      
       const newGames = Array.isArray(data.games) ? data.games : [];
-
+      
       if (reset) {
         setGames(newGames);
         setPage(2);
@@ -34,11 +33,9 @@ export default function Home() {
         setGames(prev => [...prev, ...newGames]);
         setPage(prev => prev + 1);
       }
-
-      setHasMore(data.hasMore === true);
+      setHasMore(data.hasMore !== false);
     } catch (err) {
-      console.error('Error cargando juegos:', err);
-      setHasMore(false);
+      console.error('Error fetching games:', err);
     } finally {
       setLoading(false);
     }
@@ -55,33 +52,28 @@ export default function Home() {
     fetchGames(true);
   };
 
-  const loadMore = () => fetchGames();
-
-  const toggleDetails = async (game) => {
+  const toggleGame = async (game) => {
     if (expandedId === game.id) {
       setExpandedId(null);
       return;
     }
 
     setExpandedId(game.id);
-
-    if (gameDetails[game.id]) return;
-
-    setGameDetails(prev => ({ ...prev, [game.id]: { loading: true } }));
+    setDetails(prev => ({ ...prev, [game.id]: { loading: true } }));
 
     try {
-      const res = await fetch(`/api/game-details?id=${game.id}`);
+      const res = await fetch(`/api/game-details?id=${game.id}&t=${Date.now()}`);
       const data = await res.json();
-      setGameDetails(prev => ({ ...prev, [game.id]: data || { error: true } }));
-    } catch {
-      setGameDetails(prev => ({ ...prev, [game.id]: { error: true } }));
+      setDetails(prev => ({ ...prev, [game.id]: data }));
+    } catch (err) {
+      setDetails(prev => ({ ...prev, [game.id]: { error: true } }));
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-12 text-yellow-400">
+        <h1 className="text-5xl font-bold text-center mb-10 text-yellow-400">
           Heimdallr Games
         </h1>
 
@@ -93,7 +85,7 @@ export default function Home() {
             placeholder="Buscar juegos..."
             className="flex-1 px-6 py-4 bg-gray-800 rounded-xl text-lg"
           />
-          <button type="submit" className="px-10 py-4 bg-yellow-500 text-black font-bold rounded-xl">
+          <button type="submit" className="px-10 py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400">
             Buscar
           </button>
         </form>
@@ -102,52 +94,56 @@ export default function Home() {
           {games.map((game) => (
             <div key={game.id} className="space-y-4">
               <div
-                onClick={() => toggleDetails(game)}
-                className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
+                onClick={() => toggleGame(game)}
+                className="cursor-pointer transform hover:scale-105 transition-all duration-300"
               >
-                <Image
-                  src={game.cover}
-                  alt={game.title}
-                  width={300}
-                  height={450}
-                  className="w-full rounded-xl shadow-2xl"
-                  unoptimized
-                />
+                <div className="relative overflow-hidden rounded-xl shadow-2xl">
+                  <Image
+                    src={game.cover}
+                    alt={game.title}
+                    width={300}
+                    height={450}
+                    className="w-full h-auto"
+                    unoptimized
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 hover:opacity-100 transition">
+                    <p className="absolute bottom-4 left-4 right-4 text-sm font-bold line-clamp-3">
+                      {game.title}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {expandedId === game.id && (
-                <div className="bg-gray-900 rounded-xl p-6 border-4 border-yellow-500">
-                  {gameDetails[game.id]?.loading && (
-                    <p className="text-center text-yellow-400">Cargando detalles...</p>
-                  )}
-                  {gameDetails[game.id]?.error && (
-                    <p className="text-center text-red-400">Error al cargar</p>
-                  )}
-                  {gameDetails[game.id] && !gameDetails[game.id].loading && !gameDetails[game.id].error && (
-                    <div className="space-y-4">
-                      <h3 className="text-2xl font-bold text-yellow-400">{gameDetails[game.id].title}</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {gameDetails[game.id].screenshots?.slice(0, 4).map((src, i) => (
-                          <Image key={i} src={src} alt="" width={400} height={225} className="rounded-lg" unoptimized />
+                <div className="bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
+                  {details[game.id]?.loading && <p className="text-yellow-400 text-center">Cargando detalles...</p>}
+                  {details[game.id]?.error && <p className="text-red-400 text-center">Error al cargar</p>}
+                  {details[game.id] && !details[game.id].loading && !details[game.id].error && (
+                    <>
+                      <h3 className="text-2xl font-bold text-yellow-400 mb-4">{details[game.id].title}</h3>
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        {details[game.id].screenshots?.slice(0, 4).map((src, i) => (
+                          <Image key={i} src={src} alt="" width={300} height={169} className="rounded-lg" unoptimized />
                         ))}
                       </div>
-                      <div className="text-sm space-y-2">
-                        <p><strong>Géneros:</strong> {gameDetails[game.id].genres || 'N/A'}</p>
-                        <p><strong>Repack:</strong> {gameDetails[game.id].repackSize || 'N/A'}</p>
-                        <p><strong>Original:</strong> {gameDetails[game.id].originalSize || 'N/A'}</p>
-                        <p><strong>Instalación:</strong> {gameDetails[game.id].installTime || 'N/A'}</p>
+                      <div className="space-y-3 text-sm">
+                        <p><strong>Géneros:</strong> {details[game.id].genres || 'N/A'}</p>
+                        <p><strong>Compañía:</strong> {details[game.id].company || 'N/A'}</p>
+                        <p><strong>Repack:</strong> {details[game.id].repackSize || 'N/A'}</p>
+                        <p><strong>Original:</strong> {details[game.id].originalSize || 'N/A'}</p>
+                        <p><strong>Instalación:</strong> {details[game.id].installTime || 'N/A'}</p>
                       </div>
-                      {gameDetails[game.id].csrinLink && (
+                      {details[game.id].csrinLink && (
                         <a
-                          href={gameDetails[game.id].csrinLink}
+                          href={details[game.id].csrinLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block text-center mt-4 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold"
+                          className="mt-6 block text-center py-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold"
                         >
                           Descargar (Magnet)
                         </a>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               )}
@@ -155,20 +151,15 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Mensaje inicial */}
-        {loading && games.length === 0 && (
-          <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
-        )}
+        {loading && games.length === 0 && <p className="text-center text-2xl text-yellow-400 mt-20">Cargando juegos...</p>}
 
-        {/* Cargar más */}
-        {hasMore && games.length > 0 && (
+        {hasMore && !loading && (
           <div className="text-center mt-16">
             <button
-              onClick={loadMore}
-              disabled={loading}
-              className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
+              onClick={() => fetchGames()}
+              className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full hover:bg-yellow-400 transition"
             >
-              {loading ? 'Cargando...' : 'Cargar más'}
+              Cargar más
             </button>
           </div>
         )}
