@@ -11,14 +11,14 @@ async function getRealCover(postUrl) {
     });
     const $ = cheerio.load(data);
 
-    // 1. og:image (siempre está y es la carátula grande)
+    // 1. og:image → siempre está y es la carátula perfecta
     const ogImage = $('meta[property="og:image"]').attr('content');
     if (ogImage) return ogImage;
 
     // 2. Imagen destacada del post
     const featured = $('article img.wp-post-image, article img.size-full').first().attr('src');
     if (featured) {
-      return featured.startsWith('http') ? featured : OSTileMap.fitgirl-repacks.site${featured};
+      return featured.startsWith('http') ? featured : `https://fitgirl-repacks.site${featured}`;
     }
 
     // 3. Fallback riotpixels/cover.jpg
@@ -36,7 +36,7 @@ export async function GET(request) {
   const page = parseInt(searchParams.get('page') || '1');
   const search = searchParams.get('s') || '';
 
-  // Construcción correcta de la URL (paginación en búsqueda: page/2/?s=war)
+  // URL correcta para paginación en búsqueda: page/2/?s=war
   let url = 'https://fitgirl-repacks.site/';
   if (search) {
     if (page > 1) {
@@ -80,20 +80,20 @@ export async function GET(request) {
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(game.title.slice(0, 10));
 
       if (isSearch) {
-        // En búsqueda: sacamos la carátula real del post individual
+        // En búsqueda → sacamos la carátula real del post individual
         const realCover = await getRealCover(game.postUrl);
         if (realCover) cover = realCover;
       } else {
-        // En página principal: usamos la miniatura rápida (como antes)
-        const imgEl = $(`a[href="${game.postUrl}"]`).closest('article').find('a[href*="riotpixels.com"] img').first();
-        if (imgEl && imgEl.length) {
+        // En página principal → miniatura rápida (como siempre)
+        const article = $(`a[href="${game.postUrl}"]`).closest('article');
+        const imgEl = article.find('a[href*="riotpixels.com"] img').first();
+        if (imgEl.length) {
           let src = imgEl.attr('src');
           if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
           cover = src;
         }
       }
 
-      // Filtro final por si acaso
       if (isSearch && !game.title.toLowerCase().includes(search.toLowerCase().trim())) continue;
 
       games.push({ id: game.id, title: game.title, cover });
