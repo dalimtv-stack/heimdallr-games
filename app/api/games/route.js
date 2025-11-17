@@ -23,21 +23,24 @@ export async function GET(request) {
     });
 
     const $ = cheerio.load(data);
-    const allGames = [];  // FIXED: Scrapea todo primero
+    const allGames = [];
 
-    // FIXED: Scrapea TODOS los article.post (main y search tienen misma estructura)
     $('article.post').each((i, el) => {
       const linkEl = $(el).find('h1.entry-title a').first();
       if (!linkEl.length) return;
 
-      const postUrl = linkEl.attr('href');
-      const title = linkEl.text().trim().replace(/\s*–\s*FitGirl Repack.*/i, '');
+      const rawTitle = linkEl.text().trim();
+      
+      // FIXED: Excluir "Upcoming Repacks" y similares
+      if (rawTitle.toLowerCase().includes('upcoming repacks')) return;
 
-      // ID desde # en URL
+      const title = rawTitle.replace(/\s*–\s*FitGirl Repack.*/i, '');
+
+      const postUrl = linkEl.attr('href');
       const idMatch = postUrl.match(/#(\d+)$/);
       const id = idMatch ? idMatch[1] : String(i + 1);
 
-      // TU LÓGICA DE IMÁGENES (sin cambios — funciona en main y search)
+      // TU LÓGICA DE IMÁGENES (que ya funciona perfecto)
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(title.slice(0, 10));
       const imgEl = $(el).find('a[href*="riotpixels.com"] img').first();
       if (imgEl.length) {
@@ -48,14 +51,13 @@ export async function GET(request) {
         cover = src;
       }
 
-      // FIXED: Añade a lista temporal (sin filtro aún)
       allGames.push({ id, title, cover });
     });
 
-    // FIXED: Filtro búsqueda DESPUÉS de scrape (ahora extrae covers ANTES)
-    const games = search ? allGames.filter(game => 
-      game.title.toLowerCase().includes(search.toLowerCase().trim())
-    ) : allGames;
+    // Filtro de búsqueda DESPUÉS del scrape
+    const games = search 
+      ? allGames.filter(game => game.title.toLowerCase().includes(search.toLowerCase().trim()))
+      : allGames;
 
     const hasMore = games.length >= 5;
 
