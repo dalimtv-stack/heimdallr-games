@@ -78,7 +78,6 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const tempGames = [];
 
-    // FIXED: Selectores actualizados para Novedades (h2.entry-title, img en post-thumbnail)
     $('article.post, div.post-item').each((i, el) => {
       const linkEl = $(el).find('h1.entry-title a, h2.entry-title a').first();
       if (!linkEl.length) return;
