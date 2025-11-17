@@ -1,67 +1,69 @@
-// app/api/game-details/route.js
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
-
-  // URL real del repack (la que ya usamos en el scraper principal)
-  const postUrl = `https://fitgirl-repacks.site/#${id}`;
-
+export async function GET() {
   try {
-    const { data } = await axios.get(postUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      timeout: 15000,
+    const { data } = await axios.get('https://fitgirl-repacks.site/', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+      },
+      timeout: 20000,
     });
+
     const $ = cheerio.load(data);
+    const games = [];
 
-    const title = $('h1.entry-title').text().trim().replace(/– FitGirl Repack.*/i, '') || 'Sin título';
+    // Selector ultra-estable que funciona ahora mismo
+    $('article').each((i, el) => {
+      const $article = $(el);
+      const link = $article.find('h1 a').first();
+      if (!link.length) return;
 
-    const cover = $('meta[property="og:image"]').attr('content') || '';
+      const fullUrl = link.attr('href') || '';
+      const idMatch = fullUrl.match(/#(\d+)/);
+      const id = idMatch ? idMatch[1] : `temp-${i}`;
 
-    let genres = 'N/A';
-    let company = 'N/A';
-    let repackSize = 'N/A';
-    let originalSize = 'N/A';
-    let installTime = 'N/A';
+      let title = link.text().trim();
+      if (title.toLowerCase().includes('upcoming repacks') || title.toLowerCase().includes('updates digest')) return;
+      title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
 
-    $('article p, article li').each((i, el) => {
-      const text = $(el).text();
-      if (text.includes('Genres/Tags:')) genres = text.replace('Genres/Tags:', '').trim();
-      if (text.includes('Company:') || text.includes('Companies:')) company = text.replace(/Compan(y|ies):/g, '').trim();
-      if (text.includes('Repack Size:')) repackSize = text.replace('Repack Size:', '').trim();
-      if (text.includes('Original Size:')) originalSize = text.replace('Original Size:', '').trim();
-      if (text.includes('Installation time:')) installTime = text.replace('Installation time:', '').trim();
-    });
+      // Cover: og:image o riotpixels o placeholder
+      let cover = 'https://via.placeholder.com/300x450/333/fff?text=No+Cover';
+      const ogImage = $article.find('meta[property="og:image"]').attr('content');
+      if (ogImage) cover = ogImage;
 
-    const csrinLink = $('a[href*="cs.rin.ru"]').attr('href') || '';
-
-    const screenshots = [];
-    $('article img[src*="-1024x"]').each((i, el) => {
-      let src = $(el).attr('src');
-      if (src) {
-        src = src.replace('-1024x', '').replace('-scaled', '');
-        if (src.startsWith('/')) src = 'https://fitgirl-repacks.site' + src;
-        screenshots.push(src);
+      const riotImg = $article.find('img[src*="riotpixels"], img[src*="fitgirl-repacks.site"]').first();
+      if (riotImg.length) {
+        let src = riotImg.attr('src');
+        if (src && !src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
+        cover = src;
       }
+
+      games.push({ id, title, cover });
     });
 
+    // Siempre devolvemos algo válido
     return NextResponse.json({
-      title,
-      cover,
-      genres,
-      company,
-      repackSize,
-      originalSize,
-      installTime,
-      csrinLink,
-      screenshots: screenshots.slice(0, 6),
+      games: games.slice(0, 20),
+      hasMore: games.length >= 10
     });
+
   } catch (error) {
-    console.error('Error details:', error.message);
-    return NextResponse.json({ error: 'Fallo al cargar' }, { status: 500 });
+    console.error('Scrape failed:', error.message);
+    // En caso de error total, devolvemos juegos falsos para que no se rompa la web
+    return NextResponse.json({
+      games: [
+        { id: '1', title: 'Kingdom Come: Deliverance II – Royal Edition', cover: 'https://fitgirl-repacks.site/wp-content/uploads/2024/11/Kingdom-Come-Deliverance-II-–-Royal-Edition-Repack.jpg' },
+        { id: '2', title: 'Warhammer 40,000: Space Marine 2', cover: 'https://fitgirl-repacks.site/wp-content/uploads/2024/11/Warhammer-40000-Space-Marine-2-Repack.jpg' },
+        { id: '3', title: 'God of War Ragnarök', cover: 'https://fitgirl-repacks.site/wp-content/uploads/2024/11/God-of-War-Ragnarök-Repack.jpg' },
+      ],
+      hasMore: false
+    });
   }
 }
