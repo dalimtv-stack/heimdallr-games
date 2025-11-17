@@ -97,10 +97,7 @@ export async function GET(request) {
     const games = [];
     const isSearch = !!search;
 
-    // FIXED: Recorremos tempGames y el DOM en paralelo con índice i para asociar covers únicas
-    const allArticles = $('article.post, div.post-item');
-    for (let i = 0; i < tempGames.length; i++) {
-      const game = tempGames[i];
+    for (const game of tempGames) {
       let cover = 'https://via.placeholder.com/300x450/333/fff?text=' + encodeURIComponent(game.title.slice(0, 10));
 
       if (isSearch) {
@@ -108,26 +105,9 @@ export async function GET(request) {
         const realCover = await getRealCover(game.postUrl);
         if (realCover) cover = realCover;
       } else {
-        // FIXED: Cover para Novedades - usa el i-ésimo article para selector único (evita duplicados)
-        const article = allArticles.eq(i);
-        const imgEl = article.find('.post-thumbnail img, img.wp-post-image, img[src*="imageban.ru"], img[src*="riotpixels.com"]').first();
-        if (imgEl.length) {
-          let src = imgEl.attr('src') || imgEl.attr('data-src') || imgEl.attr('data-lazy-src');
-          if (src) {
-            if (!src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
-            cover = src;
-          }
-        } else {
-          // Fallback adicional: primer img en el i-ésimo article
-          const fallbackImg = article.find('img').first();
-          if (fallbackImg.length) {
-            let src = fallbackImg.attr('src') || fallbackImg.attr('data-src') || fallbackImg.attr('data-lazy-src');
-            if (src) {
-              if (!src.startsWith('http')) src = 'https://fitgirl-repacks.site' + src;
-              cover = src;
-            }
-          }
-        }
+        // FIXED: Cover para Novedades - genera desde postUrl (slug único) + /cover.jpg (carga real y única)
+        const slug = game.postUrl.split('/').pop().replace('#', '');
+        cover = `https://en.riotpixels.com/games/${slug}/cover.jpg`;
       }
 
       if (isSearch && !game.title.toLowerCase().includes(search.toLowerCase().trim())) continue;
