@@ -19,7 +19,7 @@ async function getRealCover(postUrl) {
     }
     // 3. Fallback riotpixels/cover.jpg
     const riotLink = $('a[href*="riotpixels.com"]').first().attr('href');
-    if (riotLink) return riotLink.replace(//$/, '') + '/cover.jpg';
+    if (riotLink) return riotLink.replace(/\/$/, '') + '/cover.jpg';
     return null;
   } catch (err) {
     return null;
