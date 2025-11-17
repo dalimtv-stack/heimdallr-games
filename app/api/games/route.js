@@ -30,9 +30,10 @@ export async function GET(request) {
       if (!linkEl.length) return;
 
       const rawTitle = linkEl.text().trim();
-      
-      // FIXED: Excluir "Upcoming Repacks" y similares
+
+      // FIXED: Excluir "Upcoming Repacks" y "Updates Digest"
       if (rawTitle.toLowerCase().includes('upcoming repacks')) return;
+      if (rawTitle.toLowerCase().startsWith('updates digest')) return;
 
       const title = rawTitle.replace(/\s*–\s*FitGirl Repack.*/i, '');
 
