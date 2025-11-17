@@ -36,11 +36,13 @@ export default function Home() {
         setPage(2);
       } else {
         setGames(prev => [...prev, ...newGames]);
-        setPage(p + 1);
+        setPage(prev => prev + 1);
       }
       setHasMore(data.hasMore);
     } catch (err) {
       console.error('Error cargando juegos:', err);
+      setGames([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -49,7 +51,9 @@ export default function Home() {
   useEffect(() => {
     setPage(1);
     setExpandedId(null);
+    setExpandedDetails({});
     fetchGames(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, search]);
 
   const handleSearch = (e) => {
@@ -58,8 +62,6 @@ export default function Home() {
     setExpandedId(null);
     fetchGames(true);
   };
-
-  const loadMore = () => fetchGames();
 
   const toggleExpand = async (game) => {
     if (expandedId === game.id) {
@@ -122,10 +124,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <h1
-          onClick={resetToHome}
-          className="text-5xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition select-none"
-        >
+        <h1 onClick={resetToHome} className="text-5xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition select-none">
           Heimdallr Games
         </h1>
 
@@ -142,8 +141,7 @@ export default function Home() {
           </button>
         </form>
 
-        {/* Pestañas */}
-        <div className="mb-8 flex justify-center gap-2">
+        <div className="mb-8 flex justify-center gap-2 flex-wrap">
           {[
             { key: 'novedades', label: 'Novedades' },
             { key: 'populares_mes', label: 'Populares (mes)' },
@@ -153,7 +151,7 @@ export default function Home() {
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`px-6 py-3 rounded-lg font-bold transition ${tab === key ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+              className={`px-6 py-3 rounded-lg font-bold transition ${tab === key ? 'bg-yellow-500 text-black' : 'bg-gray-800 hover:bg-gray-700'}`}
             >
               {label}
             </button>
@@ -163,10 +161,7 @@ export default function Home() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
           {games.map((game) => (
             <div key={game.id} className="space-y-4">
-              <div
-                onClick={() => toggleExpand(game)}
-                className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
-              >
+              <div onClick={() => toggleExpand(game)} className="cursor-pointer group transform hover:scale-105 transition-all duration-300">
                 <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
                   <Image
                     src={game.cover}
@@ -177,19 +172,54 @@ export default function Home() {
                     unoptimized
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition">
-                    <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">
-                      {game.title}
-                    </p>
+                    <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">{game.title}</p>
                   </div>
                 </div>
               </div>
 
               {expandedId === game.id && (
                 <div className="bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-                  {expandedDetails[game.id]?.loading && (
-                    <p className="text-center text-yellow-400">Cargando detalles...</p>
+                  {expandedDetails[game.id]?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
+                  {expandedDetails[game.id]?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
+                  {expandedDetails[game.id] && !expandedDetails[game.id].loading && !expandedDetails[game.id].error && (
+                    <div className="space-y-4">
+                      <h3 className="text-2xl font-bold text-yellow-400 mb-4">{expandedDetails[game.id].title}</h3>
+                      <Image src={expandedDetails[game.id].cover} alt={expandedDetails[game.id].title} width={600} height={900} className="w-full rounded-lg mb-4" unoptimized />
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        {expandedDetails[game.id].screenshots?.slice(0, 4).map((src, i) => (
+                          <Image key={i} src={src} alt="" width={300} height={169} className="rounded-lg" unoptimized />
+                        ))}
+                      </div>
+                      <div className="text-sm space-y-2">
+                        <p><strong>Géneros:</strong> {expandedDetails[game.id].genres || 'N/A'}</p>
+                        <p><strong>Compañía:</strong> {expandedDetails[game.id].company || 'N/A'}</p>
+                        <p><strong>Repack:</strong> {expandedDetails[game.id].repackSize || 'N/A'}</p>
+                        <p><strong>Original:</strong> {expandedDetails[game.id].originalSize || 'N/A'}</p>
+                        <p><strong>Instalación:</strong> {expandedDetails[game.id].installTime || 'N/A'}</p>
+                      </div>
+                      {expandedDetails[game.id].csrinLink && (
+                        <a href={expandedDetails[game.id].csrinLink} target="_blank" rel="noopener noreferrer" className="mt-6 block text-center py-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold">
+                          Descargar (Magnet)
+                        </a>
+                      )}
+                    </div>
                   )}
-                  {expandedDetails[game.id]?.error && (
-                    <p className="text-center text-red-400">Error al cargar detalles</p>
-                  )}
-                  {expandedDetails[game.id] && !expandedDetails
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {loading && games.length === 0 && <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>}
+
+        {hasMore && games.length > 0 && (
+          <div className="text-center mt-16">
+            <button onClick={() => fetchGames()} disabled={loading} className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50">
+              {loading ? 'Cargando...' : 'Cargar más'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
