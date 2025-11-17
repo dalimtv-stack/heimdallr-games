@@ -3,13 +3,12 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 export default function Home() {
-  const [games, setGames] = useState([]);
+  const [games, setGames] = useState([]);        // ← siempre array
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  // Estado del modal
   const [selectedGame, setSelectedGame] = useState(null);
   const [gameDetails, setGameDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -27,16 +26,22 @@ export default function Home() {
       const res = await fetch(url);
       const data = await res.json();
 
+      // FIXED: Defensa total contra undefined
+      const newGames = Array.isArray(data.games) ? data.games : [];
+      const newHasMore = !!data.hasMore;
+
       if (reset) {
-        setGames(data.games || []);
+        setGames(newGames);
         setPage(2);
       } else {
-        setGames(prev => [...prev, ...(data.games || [])]);
+        setGames(prev => [...prev, ...newGames]);
         setPage(p + 1);
       }
-      setHasMore(data.hasMore);
+      setHasMore(newHasMore);
     } catch (err) {
       console.error('Fetch error:', err);
+      setGames([]);           // ← nunca undefined
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -52,9 +57,7 @@ export default function Home() {
     fetchGames(true);
   };
 
-  const loadMore = () => {
-    fetchGames();
-  };
+  const loadMore = () => fetchGames();
 
   const resetToHome = () => {
     setSearch('');
@@ -62,13 +65,11 @@ export default function Home() {
     fetchGames(true);
   };
 
-  // FIXED: Abrir modal con check de game.cover
   const openGameDetails = async (game) => {
-    if (!game || !game.id) return; // FIXED: Check básico
+    if (!game?.id) return;
     setSelectedGame(game);
     setDetailsLoading(true);
     setGameDetails(null);
-
     try {
       const res = await fetch(`/api/game-details?id=${game.id}`);
       if (res.ok) {
@@ -76,7 +77,7 @@ export default function Home() {
         setGameDetails(data);
       }
     } catch (err) {
-      console.error('Error loading game details:', err);
+      console.error(err);
     } finally {
       setDetailsLoading(false);
     }
@@ -111,6 +112,7 @@ export default function Home() {
         </form>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
+          {/* FIXED: games siempre es array → nunca crash */}
           {games.map((game) => (
             <div key={game.id} className="group cursor-pointer" onClick={() => openGameDetails(game)}>
               <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-lg">
@@ -120,11 +122,11 @@ export default function Home() {
                   width={300}
                   height={450}
                   className="w-full h-auto object-cover transition transform group-hover:scale-105"
-                  unoptimized={true}
+                  unoptimized
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-100 transition">
                   <p className="absolute bottom-3 left-3 text-sm font-bold text-white line-clamp-2">
-                    {game.title || 'Untitled'}
+                    {game.title || 'Sin título'}
                   </p>
                 </div>
               </div>
@@ -146,17 +148,13 @@ export default function Home() {
         )}
       </div>
 
-      {/* MODAL – FIXED: Checks seguros */}
+      {/* MODAL (igual que antes, con checks) */}
       {selectedGame && (
         <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 rounded-2xl max-w-4xl w-full max-h-screen overflow-y-auto p-6 relative">
-            <button
-              onClick={closeModal}
-              className="absolute top-4 right-4 text-white text-3xl hover:text-yellow-400"
-            >
+            <button onClick={closeModal} className="absolute top-4 right-4 text-white text-3xl hover:text-yellow-400">
               ×
             </button>
-
             {detailsLoading ? (
               <p className="text-center text-yellow-400">Cargando detalles...</p>
             ) : gameDetails ? (
@@ -165,8 +163,8 @@ export default function Home() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <Image
-                      src={gameDetails.cover || selectedGame.cover || 'https://via.placeholder.com/600x900/333/fff?text=Cover'}
-                      alt={gameDetails.title || selectedGame.title}
+                      src={gameDetails.cover || selectedGame.cover || 'https://via.placeholder.com/600x900'}
+                      alt="cover"
                       width={600}
                       height={900}
                       className="rounded-xl shadow-2xl w-full h-auto"
@@ -184,33 +182,17 @@ export default function Home() {
                         <li><strong>Tiempo instalación:</strong> {gameDetails.installTime || 'N/A'}</li>
                       </ul>
                     </div>
-
                     {gameDetails.csrinLink && (
-                      <a
-                        href={gameDetails.csrinLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block px-6 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold"
-                      >
+                      <a href={gameDetails.csrinLink} target="_blank" rel="noopener noreferrer"
+                         className="inline-block px-6 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold">
                         Abrir en CS.RIN.RU (Magnet)
                       </a>
-                    )}
-
-                    {gameDetails.screenshots && gameDetails.screenshots.length > 0 && (
-                      <div>
-                        <h3 className="text-xl font-bold text-yellow-300 mt-6">Capturas</h3>
-                        <div className="grid grid-cols-2 gap-3 mt-3">
-                          {gameDetails.screenshots.slice(0, 4).map((src, i) => (
-                            <Image key={i} src={src} alt="screenshot" width={400} height={225} className="rounded-lg" unoptimized />
-                          ))}
-                        </div>
-                      </div>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-center text-red-400">No se pudieron cargar los detalles. <button onClick={() => openGameDetails(selectedGame)} className="underline">Reintentar</button></p>
+              <p className="text-center text-red-400">Error al cargar detalles</p>
             )}
           </div>
         </div>
