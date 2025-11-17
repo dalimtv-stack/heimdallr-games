@@ -51,20 +51,19 @@ export default function Home() {
     fetchGames();
   };
 
-  // NUEVO: Reset completo al hacer clic en el título
+  // FIXED: Reset limpio sin tocar el input
   const resetToHome = () => {
-    setSearch('');
-    document.querySelector('input')?.focus(); // opcional: pone foco en el input
-    setPage(1);
-    fetchGames(true);
+    setSearch('');      // Limpia el campo de búsqueda
+    setPage(1);         // Vuelve a página 1
+    fetchGames(true);   // Recarga desde cero
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
-        {/* FIXED: Título clicable */}
+        {/* Título clicable – ahora funciona perfecto */}
         <h1 
-          className="text-4xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition"
+          className="text-4xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition select-none"
           onClick={resetToHome}
         >
           Heimdallr Games
@@ -83,6 +82,7 @@ export default function Home() {
           </button>
         </form>
 
+        {/* Resto del código igual */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
           {games.map((game) => (
             <div key={game.id} className="group">
