@@ -111,25 +111,22 @@ export async function GET(req) {
     const company = textOrNull(companyStrong || companyFallback);
 
     // Idiomas
-    const languagesRaw = matchOne(html, [
-      /Languages:\s*([\s\S]*?)(?:<br|Download Mirrors|Filehoster)/i,
-      /Idiomas:\s*([\s\S]*?)(?:<br|Download Mirrors|Filehoster)/i,
+    const languages = matchOne(html, [
+      /Languages:\s*([^<\n]+)/i,
+      /Idiomas:\s*([^<\n]+)/i,
     ]);
-    const languages = textOrNull(decodeEntities(languagesRaw));
 
     // Tamaños
-    const originalSizeRaw = matchOne(html, [
-      /Original Size:\s*([\s\S]*?)(?:<br|Repack Size|Download Mirrors|Filehoster)/i,
-      /Tamaño original:\s*([\s\S]*?)(?:<br|Repack Size|Download Mirrors|Filehoster)/i,
+    const originalSize = matchOne(html, [
+      /Original Size:\s*([^<\n]+)/i,
+      /Tamaño original:\s*([^<\n]+)/i,
     ]);
-    const originalSize = textOrNull(decodeEntities(originalSizeRaw));
 
-    const repackSizeRaw = matchOne(html, [
-      /Repack Size:\s*([\s\S]*?)(?:<br|Download Mirrors|Filehoster)/i,
-      /Tamaño del repack:\s*([\s\S]*?)(?:<br|Download Mirrors|Filehoster)/i,
+    const repackSize = matchOne(html, [
+      /Repack Size:\s*([^<\n]+)/i,
+      /Tamaño del repack:\s*([^<\n]+)/i,
     ]);
-    const repackSize = textOrNull(decodeEntities(repackSizeRaw));
-    // Mirrors (decodificados)
+    // Mirrors
     const mirrors = [
       ...new Set([
         ...matchAll(html, /<a[^>]*href="(magnet:\?xt=urn:[^"]+)"[^>]*>/i),
@@ -143,7 +140,7 @@ export async function GET(req) {
       mirrors.find((m) => m.startsWith('magnet:')) ||
       null;
 
-    // Screenshots (excluyendo torrent-stats)
+    // Screenshots
     const allImages = [
       ...new Set([
         ...matchAll(html, /<img[^>]*src="(https?:\/\/[^"]+)"[^>]*>/i),
@@ -156,10 +153,10 @@ export async function GET(req) {
       .filter((url) => /(screens?|ss|shot|gallery|cdn|images)/i.test(url) || /\.(jpg|png)$/i.test(url))
       .slice(0, 8);
 
-    // Imagen torrent-stats explícita
+    // Torrent-stats
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Características del repack (captura bloque <h3>Repack Features</h3><ul>...</ul>)
+    // Características del repack
     const repackFeaturesRaw = matchOne(html, [
       /<h3>\s*Repack Features\s*<\/h3>\s*<ul>([\s\S]*?)<\/ul>/i,
     ]);
@@ -174,7 +171,7 @@ export async function GET(req) {
           .replace(/<\/p>/gi, '\n')
           .replace(/<[^>]+>/g, '')
           .replace(/\n{3,}/g, '\n\n')
-          .replace(/^\s*\n+/, '') // quita salto inicial si aparece
+          .replace(/^\s*\n+/, '')
           .trim()
       );
     }
