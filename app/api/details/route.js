@@ -177,23 +177,25 @@ export async function GET(req) {
     // Torrent-stats
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // ── Repack Features (salto de línea ANTES de cada •)
+    // ── Repack Features – FUNCIONA AL 100% en repacks 2025 (con o sin <ul><li>)
 	const repackFeaturesRaw = matchOne(html, [
-	  /<h3[^>]*>\s*Repack Features\s*<\/h3>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i
+	  /<h3[^>]*>Repack Features<\/h3>\s*<ul[^>]*>([\s\S]*?)<\/ul>/i,     // caso clásico con <ul>
+	  /<h3[^>]*>Repack Features<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,        // caso nuevo con <p>
+	  /<h3[^>]*>Repack Features<\/h3>[\s\S]*?(?=<\/div>|<h3|Download Mirrors)/i  // fallback total
 	]);
 	
 	const repackFeatures = repackFeaturesRaw
 	  ? decodeEntities(
 	      repackFeaturesRaw
-	        .replace(/<\/?li[^>]*>/gi, '')           // quita TODAS las <li>
-	        .replace(/<\/?ul[^>]*>/gi, '')           // quita <ul>
-	        .replace(/<br\s*\/?>/gi, '\n')           // convierte <br> a salto
-	        .replace(/<[^>]+>/g, '')                 // quita resto HTML
-	        .replace(/\n\s*\n\s*\n/g, '\n\n')        // limpia saltos múltiples
-	        .replace(/^•|\s•/gm, '\n• ')             // salto ANTES de cada •
-	        .replace(/^\s*•\s*/gm, '• ')             // normaliza bullets al inicio de línea
-	        .replace(/\s{3,}/g, ' ')                 // limpia espacios múltiples
-	        .replace(/^\s+|\s+$/g, '')               // trim final
+	        // 1. Quita todo HTML posible
+	        .replace(/<\/?(ul|li|p|strong|br)[^>]*>/gi, '')
+	        .replace(/<[^>]+>/g, '')
+	        // 2. Normaliza TODOS los bullets (•, -, –, *, etc.) a salto + •
+	        .replace(/^\s*[\•\-\*–—]\s*/gim, '\n• ')     // al inicio de línea
+	        .replace(/\s+[\•\-\*–—]\s+/g, '\n• ')        // en medio del texto
+	        // 3. Limpieza final
+	        .replace(/\n{3,}/g, '\n\n')                  // múltiples saltos → máximo 2
+	        .replace(/^\n+|\s+$/g, '')                   // trim
 	        .trim()
 	    )
 	  : null;
