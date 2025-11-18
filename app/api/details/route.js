@@ -89,9 +89,7 @@ export async function GET(req) {
       matchOne(html, [
         /<meta[^>]*property="og:image"[^>]*content="(.*?)"/is,
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
-      ]);
-
-		// ── Géneros (ahora sí funciona perfecto)
+      ]);// ── Géneros (ahora sí funciona perfecto)
 		const genresRaw = matchOne(html, [
 		  /Genres\/Tags:\s*<strong>([\s\S]*?)<\/strong>/i,
 		  /Genres\/Tags:\s*([\s\S]*?)(?:<br|<p|<\/p)/i
