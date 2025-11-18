@@ -91,34 +91,44 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-    // Géneros (corta en <br> y limpia enlaces)
+    // Géneros
     const genresRaw = matchOne(html, [/Genres\/Tags:\s*([\s\S]*?)<br>/i]);
     const genres = genresRaw
       ? decodeEntities(genresRaw.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1'))
       : null;
 
-    // Compañía (corta en <br>)
-    const company = matchOne(html, [
-      /Companies:\s*<strong>(.*?)<\/strong><br>/i,
-      /Compañías?:\s*<strong>(.*?)<\/strong><br>/i,
+    // Compañía
+    const companyStrong = matchOne(html, [
+      /Companies:\s*<strong>(.*?)<\/strong>\s*<br>/i,
+      /Company:\s*<strong>(.*?)<\/strong>\s*<br>/i,
+      /Compañías?:\s*<strong>(.*?)<\/strong>\s*<br>/i,
     ]);
+    const companyFallback = matchOne(html, [
+      /Companies:\s*([^<\n]+)\s*<br>/i,
+      /Company:\s*([^<\n]+)\s*<br>/i,
+      /Compañías?:\s*([^<\n]+)\s*<br>/i,
+    ]);
+    const company = textOrNull(companyStrong || companyFallback);
 
     // Idiomas
-    const languages = matchOne(html, [
-      /Languages:\s*([^<\n]+)/i,
-      /Idiomas:\s*([^<\n]+)/i,
+    const languagesRaw = matchOne(html, [
+      /Languages:\s*([\s\S]*?)(?:<br|Download Mirrors|Filehoster)/i,
+      /Idiomas:\s*([\s\S]*?)(?:<br|Download Mirrors|Filehoster)/i,
     ]);
+    const languages = textOrNull(decodeEntities(languagesRaw));
 
     // Tamaños
-    const originalSize = matchOne(html, [
-      /Original Size:\s*([^<\n]+)/i,
-      /Tamaño original:\s*([^<\n]+)/i,
+    const originalSizeRaw = matchOne(html, [
+      /Original Size:\s*([\s\S]*?)(?:<br|Repack Size|Download Mirrors|Filehoster)/i,
+      /Tamaño original:\s*([\s\S]*?)(?:<br|Repack Size|Download Mirrors|Filehoster)/i,
     ]);
+    const originalSize = textOrNull(decodeEntities(originalSizeRaw));
 
-    const repackSize = matchOne(html, [
-      /Repack Size:\s*([^<\n]+)/i,
-      /Tamaño del repack:\s*([^<\n]+)/i,
+    const repackSizeRaw = matchOne(html, [
+      /Repack Size:\s*([\s\S]*?)(?:<br|Download Mirrors|Filehoster)/i,
+      /Tamaño del repack:\s*([\s\S]*?)(?:<br|Download Mirrors|Filehoster)/i,
     ]);
+    const repackSize = textOrNull(decodeEntities(repackSizeRaw));
     // Mirrors (decodificados)
     const mirrors = [
       ...new Set([
@@ -158,12 +168,13 @@ export async function GET(req) {
     if (repackFeaturesRaw) {
       repackFeatures = decodeEntities(
         repackFeaturesRaw
-          .replace(/<li[^>]*>\s*/gi, '• ')
-          .replace(/<\/li>/gi, '\n')
+          .replace(/<li[^>]*>\s*/gi, '\n• ') // salto de línea antes de cada bullet
+          .replace(/<\/li>/gi, '')
           .replace(/<br\s*\/?>/gi, '\n')
           .replace(/<\/p>/gi, '\n')
           .replace(/<[^>]+>/g, '')
-          .replace(/\n{2,}/g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .replace(/^\s*\n+/, '') // quita salto inicial si aparece
           .trim()
       );
     }
