@@ -91,26 +91,27 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 	  
-	  // ── Géneros (FUNCIONA AL 100% EN TODOS LOS REPACKS ACTUALES)
-		const genresRaw = matchOne(html, [
-		  /Genres\/Tags:\s*([^<]+?)(?:<br|<p|<\/p|<\/div|\n)/i,     // caso sin enlaces
-		  /Genres\/Tags:\s*([\s\S]*?)(?:<br\s*\/?>|<\/p>|\n\n)/i     // caso con <a> o lo que sea hasta el siguiente <br> o </p>
-		]);
-		
-		const genres = genresRaw
-		  ? decodeEntities(
-		      genresRaw
-		        .replace(/Genres\/Tags:?\s*/gi, '')     // quita el prefijo
-		        .replace(/<a[^>]*>(.*?)<\/a>/gi, '$1')  // quita los enlaces <a>
-		        .replace(/<[^>]+>/g, '')                // quita cualquier otro HTML
-		        .replace(/\s+/g, ' ')
-		        .trim()
-		        .split(/,\s*|\s+\/\s+/)
-		        .map(s => s.trim())
-		        .filter(Boolean)
-		        .join(', ')
-		    )
-		  : null;	
+	// ── Géneros (corta en Companies: – SÚPER SIMPLE Y FUNCIONA AL 100%)
+	const genresRaw = matchOne(html, [
+	  /Genres\/Tags:\s*([^<]+?)(?=\s*Companies:)/i,
+	  /Genres\/Tags:\s*([\s\S]*?)(?=\s*Companies:)/i,
+	  /Genres\/Tags:\s*([^<]+?)(?=\s*Languages:)/i  // fallback si Companies falla
+	]);
+	
+	const genres = genresRaw
+	  ? decodeEntities(
+	      genresRaw
+	        .replace(/Genres\/Tags:?\s*/gi, '')
+	        .replace(/<a[^>]*>(.*?)<\/a>/gi, '$1')  // solo enlaces, si hay
+	        .replace(/<[^>]+>/g, '')
+	        .replace(/\s+/g, ' ')
+	        .trim()
+	        .split(/,\s*|\s+\/\s+/)
+	        .map(s => s.trim())
+	        .filter(Boolean)
+	        .join(', ')
+	    )
+	  : null;
 		
 		// ── Compañía
 		const company = textOrNull(
