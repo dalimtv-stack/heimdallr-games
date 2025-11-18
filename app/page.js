@@ -305,15 +305,17 @@ export default function Home() {
                     >
                       Instalar en qBittorrent
                     </button>
-                    {/* Imagen torrent-stats */}
-                    <Image
-                      src={`https://torrent-stats.info/${selectedDetails.csrinLink.match(/btih:([A-F0-9]+)/i)?.[1]}.png`}
-                      alt="Torrent stats"
-                      width={800}
-                      height={200}
-                      className="w-full mt-4 rounded-lg border border-gray-700"
-                      unoptimized
-                    />
+                    {/* Imagen torrent-stats solo abajo */}
+                    {selectedDetails.torrentStatsImage && (
+                      <Image
+                        src={selectedDetails.torrentStatsImage}
+                        alt="Torrent stats"
+                        width={800}
+                        height={200}
+                        className="w-full mt-4 rounded-lg border border-gray-700"
+                        unoptimized
+                      />
+                    )}
                   </>
                 )}
 
