@@ -205,18 +205,20 @@ export default function Home() {
             )}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
-                {/* Carátula + título */}
+                {/* Carátula + título con fallback */}
                 <div className="flex gap-6 items-start">
                   <Image
-                    src={selectedDetails.cover}
-                    alt={selectedDetails.title}
+                    src={selectedDetails.cover || selectedGame.cover}
+                    alt={selectedDetails.title || selectedGame.title}
                     width={200}
                     height={300}
                     className="rounded-lg"
                     unoptimized
                   />
                   <h3 className="text-3xl font-bold text-yellow-400">
-                    {selectedDetails.title}
+                    {selectedDetails.title && !selectedDetails.title.includes('FitGirl Repacks')
+                      ? selectedDetails.title
+                      : selectedGame.title}
                   </h3>
                 </div>
 
@@ -227,7 +229,7 @@ export default function Home() {
                   <p><strong>Idiomas:</strong> {selectedDetails.languages || 'N/A'}</p>
                   <p><strong>Tamaño Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
                   <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
-                  <p><strong>Download Mirrors:</strong> {selectedDetails.mirrors || 'N/A'}</p>
+                  <p><strong>Download Mirrors:</strong> {selectedDetails.mirrors?.join(', ') || 'N/A'}</p>
                 </div>
 
                 {/* Capturas */}
