@@ -26,8 +26,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [tab, setTab] = useState('novedades');
+  const [viewMode, setViewMode] = useState('list'); // 'list' o 'detail'
   const [selectedGame, setSelectedGame] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
+  const [showRepack, setShowRepack] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const fetchGames = async (reset = false) => {
     setLoading(true);
@@ -59,6 +62,7 @@ export default function Home() {
     setPage(1);
     setSelectedGame(null);
     setSelectedDetails(null);
+    setViewMode('list');
     fetchGames(true);
   }, [tab]);
 
@@ -66,6 +70,8 @@ export default function Home() {
     e.preventDefault();
     setPage(1);
     setSelectedGame(null);
+    setSelectedDetails(null);
+    setViewMode('list');
     fetchGames(true);
   };
 
@@ -74,6 +80,7 @@ export default function Home() {
   const handleSelect = async (game) => {
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
+    setViewMode('detail');
     try {
       const res = await fetch(`/api/details?url=${encodeURIComponent(game.postUrl)}`);
       const data = await res.json();
@@ -89,6 +96,7 @@ export default function Home() {
     setPage(1);
     setSelectedGame(null);
     setSelectedDetails(null);
+    setViewMode('list');
     fetchGames(true);
   };
 
@@ -133,51 +141,62 @@ export default function Home() {
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
-          {games.map((game) => (
-            <div key={game.id} className="space-y-4">
-              <div
-                onClick={() => handleSelect(game)}
-                className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
-              >
-                <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
-                  <Image
-                    src={game.cover}
-                    alt={game.title}
-                    width={300}
-                    height={450}
-                    className="w-full h-auto object-cover"
-                    unoptimized
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition">
-                    <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">
-                      {game.title}
-                    </p>
+        {viewMode === 'list' && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
+              {games.map((game) => (
+                <div key={game.id} className="space-y-4">
+                  <div
+                    onClick={() => handleSelect(game)}
+                    className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
+                  >
+                    <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
+                      <Image
+                        src={game.cover}
+                        alt={game.title}
+                        width={300}
+                        height={450}
+                        className="w-full h-auto object-cover"
+                        unoptimized
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition">
+                        <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">
+                          {game.title}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {loading && games.length === 0 && (
-          <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
+            {loading && games.length === 0 && (
+              <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
+            )}
+
+            {hasMore && games.length > 0 && (
+              <div className="text-center mt-16">
+                <button
+                  onClick={loadMore}
+                  disabled={loading}
+                  className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
+                >
+                  {loading ? 'Cargando...' : 'Cargar más'}
+                </button>
+              </div>
+            )}
+          </>
         )}
 
-        {hasMore && games.length > 0 && (
-          <div className="text-center mt-16">
-            <button
-              onClick={loadMore}
-              disabled={loading}
-              className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
-            >
-              {loading ? 'Cargando...' : 'Cargar más'}
-            </button>
-          </div>
-        )}
-
-        {selectedGame && (
+        {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
+            <button
+              onClick={() => setViewMode('list')}
+              className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
+            >
+              Volver al listado
+            </button>
+
             {selectedDetails?.loading && (
               <p className="text-center text-yellow-400">Cargando detalles...</p>
             )}
@@ -185,18 +204,33 @@ export default function Home() {
               <p className="text-center text-red-400">Error al cargar detalles</p>
             )}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-yellow-400 mb-4">
-                  {selectedDetails.title}
-                </h3>
-                <Image
-                  src={selectedDetails.cover}
-                  alt={selectedDetails.title}
-                  width={600}
-                  height={900}
-                  className="w-full rounded-lg mb-4"
-                  unoptimized
-                />
+              <div className="space-y-6">
+                {/* Carátula + título */}
+                <div className="flex gap-6 items-start">
+                  <Image
+                    src={selectedDetails.cover}
+                    alt={selectedDetails.title}
+                    width={200}
+                    height={300}
+                    className="rounded-lg"
+                    unoptimized
+                  />
+                  <h3 className="text-3xl font-bold text-yellow-400">
+                    {selectedDetails.title}
+                  </h3>
+                </div>
+
+                {/* Campos principales */}
+                <div className="text-sm space-y-2">
+                  <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
+                  <p><strong>Compañía:</strong> {selectedDetails.company || 'N/A'}</p>
+                  <p><strong>Idiomas:</strong> {selectedDetails.languages || 'N/A'}</p>
+                  <p><strong>Tamaño Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
+                  <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
+                  <p><strong>Download Mirrors:</strong> {selectedDetails.mirrors || 'N/A'}</p>
+                </div>
+
+                {/* Capturas */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   {selectedDetails.screenshots?.slice(0, 4).map((src, i) => (
                     <Image
@@ -210,13 +244,32 @@ export default function Home() {
                     />
                   ))}
                 </div>
-                <div className="text-sm space-y-2">
-                  <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
-                  <p><strong>Compañía:</strong> {selectedDetails.company || 'N/A'}</p>
-                  <p><strong>Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
-                  <p><strong>Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
-                  <p><strong>Instalación:</strong> {selectedDetails.installTime || 'N/A'}</p>
+
+                {/* Secciones plegables */}
+                <div>
+                  <button
+                    onClick={() => setShowRepack(!showRepack)}
+                    className="w-full text-left py-2 font-bold text-yellow-400"
+                  >
+                    Características del repack
+                  </button>
+                  {showRepack && (
+                    <p className="mt-2 text-sm">{selectedDetails.repackFeatures || 'N/A'}</p>
+                  )}
                 </div>
+
+                <div>
+                  <button
+                    onClick={() => setShowInfo(!showInfo)}
+                    className="w-full text-left py-2 font-bold text-yellow-400"
+                  >
+                    Información del juego
+                  </button>
+                  {showInfo && (
+                    <p className="mt-2 text-sm">{selectedDetails.gameInfo || 'N/A'}</p>
+                  )}
+                </div>
+
                 {selectedDetails.csrinLink && (
                   <button
                     onClick={() => sendMagnetToQB(selectedDetails.csrinLink)}
