@@ -147,6 +147,17 @@ export async function GET(req) {
 		    /Repack\s+Size:\s*((?:from )?[\d.,\s]+ ?(?:GB|MB)[^<\r\n]*)/i
 		  ])
 		);
+	 	
+	  // ── Tamaño después de instalado (justo después de Repack Size)
+		const installedSize = textOrNull(
+		  matchOne(html, [
+		    /HDD space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
+		    /Space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
+		    /Disk space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
+		    /Installation requires[:\s]*[\d.,\s–~]+ ?(?:GB|MB).+?up to ([\d.,\s–~]+ ?(?:GB|MB))/i,  // caso "up to 49.2 GB"
+		    /After-install.*?(?:up to|[:\s])([\d.,\s–~]+ ?(?:GB|MB))/i
+		  ])
+		);
     // Mirrors
     const mirrors = [
       ...new Set([
@@ -218,6 +229,7 @@ export async function GET(req) {
       languages: textOrNull(languages),
       originalSize: textOrNull(originalSize),
       repackSize: textOrNull(repackSize),
+      installedSize: textOrNull(installedSize),
       mirrors,
       screenshots,
       repackFeatures,
