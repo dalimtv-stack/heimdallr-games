@@ -177,25 +177,19 @@ export async function GET(req) {
     // Torrent-stats
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // ── Repack Features – FUNCIONA AL 100% en repacks 2025 (con o sin <ul><li>)
+    // Repack Features – versión que funciona con los repacks actuales (2025)
 	const repackFeaturesRaw = matchOne(html, [
-	  /<h3[^>]*>Repack Features<\/h3>\s*<ul[^>]*>([\s\S]*?)<\/ul>/i,     // caso clásico con <ul>
-	  /<h3[^>]*>Repack Features<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,        // caso nuevo con <p>
-	  /<h3[^>]*>Repack Features<\/h3>[\s\S]*?(?=<\/div>|<h3|Download Mirrors)/i  // fallback total
+	  /<h3[^>]*>Repack Features<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,           // caso actual: todo dentro de <p>
+	  /<h3[^>]*>Repack Features<\/h3>\s*([\s\S]*?)(?=<h3|Download Mirrors|<\/div>)/i  // fallback si cambia
 	]);
 	
 	const repackFeatures = repackFeaturesRaw
 	  ? decodeEntities(
 	      repackFeaturesRaw
-	        // 1. Quita todo HTML posible
-	        .replace(/<\/?(ul|li|p|strong|br)[^>]*>/gi, '')
-	        .replace(/<[^>]+>/g, '')
-	        // 2. Normaliza TODOS los bullets (•, -, –, *, etc.) a salto + •
-	        .replace(/^\s*[\•\-\*–—]\s*/gim, '\n• ')     // al inicio de línea
-	        .replace(/\s+[\•\-\*–—]\s+/g, '\n• ')        // en medio del texto
-	        // 3. Limpieza final
-	        .replace(/\n{3,}/g, '\n\n')                  // múltiples saltos → máximo 2
-	        .replace(/^\n+|\s+$/g, '')                   // trim
+	        .replace(/<[^>]+>/g, '')                     // quita todo HTML
+	        .replace(/^\s*•\s*/gm, '• ')                 // normaliza bullets al inicio
+	        .replace(/\s+•\s+/g, '\n• ')                 // mete salto antes de cada • que esté en medio
+	        .replace(/\n{3,}/g, '\n\n')                  // máximo 2 saltos seguidos
 	        .trim()
 	    )
 	  : null;
