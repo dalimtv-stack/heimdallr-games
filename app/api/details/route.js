@@ -76,7 +76,7 @@ export async function GET(req) {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
       cache: 'no-store',
     });
@@ -112,12 +112,13 @@ export async function GET(req) {
       ]);
 
     // Bloque de info
-    const infoBlockText = cleanHtmlToText(
-      matchOne(html, [/class="entry-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-        matchOne(html, [/class="post-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-        matchOne(html, [/class="content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-        html
-    ) || '';
+    const infoBlockText =
+      cleanHtmlToText(
+        matchOne(html, [/class="entry-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
+          matchOne(html, [/class="post-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
+          matchOne(html, [/class="content"[^>]*>([\s\S]*?)<\/div>/is]) ||
+          html
+      ) || '';
 
     const lines = infoBlockText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
     const kv = {};
@@ -161,13 +162,21 @@ export async function GET(req) {
       .filter((url) => /(screens?|ss|shot|gallery|cdn|images)/i.test(url) || /\.(jpg|png)$/i.test(url))
       .slice(0, 8);
 
-    // Imagen torrent-stats explícita
-    const torrentStatsImage = matchOne(html, [/https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png/]);
+    // Imagen torrent-stats explícita (fix: usar grupo de captura)
+    const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Secciones plegables
+    // Secciones: Features Repack (fix: patrones más amplios)
     const repackFeaturesRaw =
       extractSectionByHeading(html, 'Features Repack') ||
       extractSectionByHeading(html, 'Características del repack') ||
+      matchOne(
+        html,
+        [
+          /<b[^>]*>\s*Features[^<]*<\/b>([\s\S]*?)(?:<(?:h2|h3|b)[^>]*>)/is,
+          /<strong[^>]*>\s*Features[^<]*<\/strong>([\s\S]*?)(?:<(?:h2|h3|b)[^>]*>)/is,
+          /Features\s*:?\s*([\s\S]*?)(?:<(?:h2|h3|b)[^>]*>)/is,
+        ]
+      ) ||
       null;
 
     const gameInfoRaw =
