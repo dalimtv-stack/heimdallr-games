@@ -190,6 +190,7 @@ export default function Home() {
 
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
+            {/* Botón arriba */}
             <button
               onClick={() => setViewMode('list')}
               className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
@@ -229,7 +230,29 @@ export default function Home() {
                   <p><strong>Idiomas:</strong> {selectedDetails.languages || 'N/A'}</p>
                   <p><strong>Tamaño Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
                   <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
-                  <p><strong>Download Mirrors:</strong> {selectedDetails.mirrors?.join(', ') || 'N/A'}</p>
+
+                  {/* Mirrors como lista */}
+                  <div className="space-y-2">
+                    <p className="font-bold">Download Mirrors:</p>
+                    {selectedDetails.mirrors?.length > 0 ? (
+                      <ul className="list-disc list-inside text-sm">
+                        {selectedDetails.mirrors.map((url, i) => (
+                          <li key={i}>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:underline break-all"
+                            >
+                              {url.startsWith('magnet:') ? 'Magnet Link' : url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>N/A</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Capturas */}
@@ -280,6 +303,14 @@ export default function Home() {
                     Instalar en qBittorrent
                   </button>
                 )}
+
+                {/* Botón abajo */}
+                <button
+                  onClick={() => setViewMode('list')}
+                  className="mt-8 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
+                >
+                  Volver al listado
+                </button>
               </div>
             )}
           </div>
