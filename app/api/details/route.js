@@ -25,24 +25,6 @@ function matchAll(html, pattern, groupIndex = 1, limit = 50) {
   return out;
 }
 
-// Regex ampliado para capturar etiquetas HTML antes del label
-function normalizeLabelValue(line) {
-  const m = line.match(/^\s*(?:<[^>]+>)*\s*([A-Za-zÀ-ÿ0-9\s\/\-\(\)]+)\s*:\s*(.+)$/i);
-  if (!m) return null;
-  return { label: m[1].trim(), value: m[2].trim() };
-}
-
-function extractSectionByHeading(html, headingText) {
-  const idx = html.toLowerCase().indexOf(headingText.toLowerCase());
-  if (idx === -1) return null;
-  const tail = html.slice(idx);
-  const cutIdx = tail.search(/<(h2|h3|h4|b)[^>]*>/i);
-  if (cutIdx > 0) {
-    return textOrNull(tail.slice(0, cutIdx));
-  }
-  return textOrNull(tail);
-}
-
 function decodeEntities(str) {
   if (!str) return null;
   return str
@@ -101,49 +83,32 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-    // Bloque de info normalizado
-    const infoBlockHtml =
-      matchOne(html, [/class="entry-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-      matchOne(html, [/class="post-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-      matchOne(html, [/class="content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-      html;
-
-    const infoText = decodeEntities(
-      (infoBlockHtml || '')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<li[^>]*>/gi, '\n• ')
-        .replace(/<[^>]+>/g, '')
-    );
-
-    const lines = infoText
-      .split(/\n+/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-
-    const kv = {};
-    for (const line of lines) {
-      const pair = normalizeLabelValue(line);
-      if (!pair) continue;
-      const key = pair.label.toLowerCase();
-      kv[key] = pair.value;
-    }
-
+    // Géneros y compañía directos
     const genres =
-      kv['genres'] || kv['genre'] || kv['géneros'] || kv['género'] || null;
+      matchOne(html, [/Genres:\s*([^<\n]+)/i]) ||
+      matchOne(html, [/Géneros:\s*([^<\n]+)/i]) ||
+      null;
 
     const company =
-      kv['company'] || kv['compañía'] || kv['developer'] || kv['publisher'] ||
-      kv['desarrollador'] || kv['editor'] || null;
+      matchOne(html, [/Company:\s*([^<\n]+)/i]) ||
+      matchOne(html, [/Developer:\s*([^<\n]+)/i]) ||
+      matchOne(html, [/Compañía:\s*([^<\n]+)/i]) ||
+      null;
 
     const languages =
-      kv['languages'] || kv['idiomas'] || kv['language'] || kv['idioma'] || null;
+      matchOne(html, [/Languages:\s*([^<\n]+)/i]) ||
+      matchOne(html, [/Idiomas:\s*([^<\n]+)/i]) ||
+      null;
 
     const originalSize =
-      kv['original size'] || kv['tamaño original'] || null;
+      matchOne(html, [/Original Size:\s*([^<\n]+)/i]) ||
+      matchOne(html, [/Tamaño original:\s*([^<\n]+)/i]) ||
+      null;
 
     const repackSize =
-      kv['repack size'] || kv['tamaño del repack'] || null;
+      matchOne(html, [/Repack Size:\s*([^<\n]+)/i]) ||
+      matchOne(html, [/Tamaño del repack:\s*([^<\n]+)/i]) ||
+      null;
     // Mirrors (decodificados)
     const mirrors = [
       ...new Set([
@@ -174,20 +139,17 @@ export async function GET(req) {
     // Imagen torrent-stats explícita
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Características del repack
-    const repackFeaturesBlockHtml =
+    // Características del repack (captura directa del bloque)
+    const repackFeaturesRaw =
       matchOne(html, [
-        /(?:Features Repack|Características del repack)[\s\S]*?(<ul[\s\S]*?<\/ul>)/is,
-        /(?:Features Repack|Características del repack)[\s\S]*?(<p[\s\S]*?<\/p>)/is,
-      ]) ||
-      extractSectionByHeading(html, 'Features Repack') ||
-      extractSectionByHeading(html, 'Características del repack') ||
-      null;
+        /<b[^>]*>\s*Features Repack\s*<\/b>([\s\S]*?)(?=<(?:h2|h3|b|strong)[^>]*>)/i,
+        /<strong[^>]*>\s*Features Repack\s*<\/strong>([\s\S]*?)(?=<(?:h2|h3|b|strong)[^>]*>)/i,
+      ]) || null;
 
     let repackFeatures = null;
-    if (repackFeaturesBlockHtml) {
+    if (repackFeaturesRaw) {
       repackFeatures = decodeEntities(
-        repackFeaturesBlockHtml
+        repackFeaturesRaw
           .replace(/<li[^>]*>\s*/gi, '• ')
           .replace(/<\/li>/gi, '\n')
           .replace(/<br\s*\/?>/gi, '\n')
@@ -199,7 +161,7 @@ export async function GET(req) {
 
     // Información del juego
     const gameInfoRaw =
-      extractSectionByHeading(html, 'Game Description') ||
+      matchOne(html, [/Game Description\s*:?([\s\S]*?)(?=<(?:h2|h3|b|strong)[^>]*>)/i]) ||
       extractSectionByHeading(html, 'Game Info') ||
       extractSectionByHeading(html, 'Información del juego') ||
       null;
