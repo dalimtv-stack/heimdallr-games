@@ -270,38 +270,51 @@ export default function Home() {
                   ))}
                 </div>
 
-                {/* Secciones plegables */}
+                {/* Secciones plegables con estilo clickable */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
-                    className="w-full text-left py-2 font-bold text-yellow-400"
+                    className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                   >
                     Características del repack
+                    <span>{showRepack ? '▲' : '▼'}</span>
                   </button>
                   {showRepack && (
-                    <p className="mt-2 text-sm">{selectedDetails.repackFeatures || 'N/A'}</p>
+                    <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg">{selectedDetails.repackFeatures || 'N/A'}</p>
                   )}
                 </div>
 
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
-                    className="w-full text-left py-2 font-bold text-yellow-400"
+                    className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                   >
                     Información del juego
+                    <span>{showInfo ? '▲' : '▼'}</span>
                   </button>
                   {showInfo && (
-                    <p className="mt-2 text-sm">{selectedDetails.gameInfo || 'N/A'}</p>
+                    <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg">{selectedDetails.gameInfo || 'N/A'}</p>
                   )}
                 </div>
 
                 {selectedDetails.csrinLink && (
-                  <button
-                    onClick={() => sendMagnetToQB(selectedDetails.csrinLink)}
-                    className="mt-6 block w-full text-center py-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold"
-                  >
-                    Instalar en qBittorrent
-                  </button>
+                  <>
+                    <button
+                      onClick={() => sendMagnetToQB(selectedDetails.csrinLink)}
+                      className="mt-6 block w-full text-center py-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold"
+                    >
+                      Instalar en qBittorrent
+                    </button>
+                    {/* Imagen torrent-stats */}
+                    <Image
+                      src={`https://torrent-stats.info/${selectedDetails.csrinLink.match(/btih:([A-F0-9]+)/i)?.[1]}.png`}
+                      alt="Torrent stats"
+                      width={800}
+                      height={200}
+                      className="w-full mt-4 rounded-lg border border-gray-700"
+                      unoptimized
+                    />
+                  </>
                 )}
 
                 {/* Botón abajo */}
