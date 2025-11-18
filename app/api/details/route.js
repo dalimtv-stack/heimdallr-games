@@ -1,193 +1,179 @@
 import { NextResponse } from 'next/server';
 
-// Helpers
+// ── Helpers mejorados ─────────────────────────────────────
 function textOrNull(str) {
   const s = (str || '').trim();
-  return s && s !== 'N/A' ? s : null;
+  return s && s !== 'N/A' && s !== '' ? s : null;
 }
 
 function matchOne(html, patterns) {
   for (const re of patterns) {
     const m = html.match(re);
-    if (m && m[1]) return m[1].trim();
+    if (m?.[1]) return m[1].trim();
   }
   return null;
 }
 
-function matchAll(html, pattern, groupIndex = 1, limit = 50) {
-  const out = [];
+function matchAll(html, pattern, groupIndex = 1) {
+  const results = [];
   let m;
-  const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
-  while ((m = re.exec(html)) && out.length < limit) {
-    const v = (m[groupIndex] || '').trim();
-    if (v) out.push(v);
+  const re = new RegExp(pattern, 'gi');
+  while ((m = re.exec(html)) !== null) {
+    const value = (m[groupIndex] || '').trim();
+    if (value) results.push(value);
   }
-  return out;
+  return results;
 }
 
 function decodeEntities(str) {
-  if (!str) return null;
-  const named = {
+  if (!str) return '';
+  const entities = {
     '&amp;': '&',
     '&quot;': '"',
     '&#039;': "'",
     '&lt;': '<',
     '&gt;': '>',
+    '&nbsp;': ' ',
     '&hellip;': '…',
-    '&rarr;': '→',
+    '&ndash;': '–',
+    '&mdash;': '—',
     '&#8211;': '–',
     '&#8212;': '—',
+    '&#038;': '&',
   };
   return str
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/(&[a-zA-Z]+;|&#\d+;)/g, (m) => named[m] ?? m);
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(code))
+    .replace(/&[a-z]+;/gi, m => entities[m] || m);
 }
 
+// ── Ruta GET ──────────────────────────────────────────────
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const postUrl = searchParams.get('url');
-    if (!postUrl) {
-      return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
-    }
+    if (!postUrl) return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
 
     const res = await fetch(postUrl, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
       },
       cache: 'no-store',
     });
 
-    if (!res.ok) {
-      return NextResponse.json({ error: `Failed to fetch: ${res.status}` }, { status: 502 });
-    }
+    if (!res.ok) return NextResponse.json({ error: `HTTP ${res.status}` }, { status: 502 });
 
     const rawHtml = await res.text();
     const html = decodeEntities(rawHtml);
 
-    // Título
-    let title =
-      matchOne(html, [
-        /<h1[^>]*class="post-title"[^>]*>(.*?)<\/h1>/is,
-        /<h1[^>]*>(.*?)<\/h1>/is,
-        /<title[^>]*>(.*?)<\/title>/is,
-      ]) || matchOne(html, [/itemprop="name"[^>]*content="(.*?)"/is]);
+    // ── Título ───────────────────────────────────────────
+    let title = matchOne(html, [
+      /<h1[^>]+class=["']post-title[^>]+>([\s\S]*?)<\/h1>/i,
+      /<h1[^>]*>([\s\S]*?)<\/h1>/i,
+      /<title>([\s\S]*?)<\/title>/i,
+    ])?.replace(/\s*[-–—]\s*FitGirl Repacks?.*$/i, '').trim();
 
-    if (title && title.includes('FitGirl Repacks')) {
-      title = null;
-    }
+    // ── Carátula ───────────────────────────────────────────
+    const cover = matchOne(html, [
+      /<img[^>]+class=["']cover[^>]+src=["']([^"']+)/i,
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i,
+      /<img[^>]+itemprop=["']image["'][^>]+src=["']([^"']+)/i,
+      /<a[^>]+class=["']fancybox[^>]+href=["']([^"']+)/i,
+    ]);
 
-    // Carátula
-    const cover =
-      matchOne(html, [
-        /<img[^>]*class="cover"[^>]*src="(.*?)"/is,
-        /<img[^>]*itemprop="image"[^>]*src="(.*?)"/is,
-        /<a[^>]*class="fancybox"[^>]*href="(.*?)"/is,
-      ]) ||
-      matchOne(html, [
-        /<meta[^>]*property="og:image"[^>]*content="(.*?)"/is,
-        /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
-      ]);
+    // ── Géneros (muy robusto) ──────────────────────────────
+    const genresBlock = matchOne(html, [
+      /Genres\/Tags:[\s\S]*?(<br|<p|<\/p|<ul|<\/div)/i,
+      /Genres\/Tags:([^<]+(<br|<\/p))/i,
+    ]) || '';
 
-    // Géneros
-    const genresRaw = matchOne(html, [/Genres\/Tags:\s*([\s\S]*?)<br>/i]);
-    const genres = genresRaw
-      ? decodeEntities(genresRaw.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1'))
+    const genres = genresBlock
+      ? genresBlock
+          .replace(/<[^>]+>/g, '')           // quitar todo HTML
+          .replace(/Genres\/Tags:?\s*/i, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .split(/,\s*|\s+\/\s+/)
+          .filter(Boolean)
+          .join(', ')
       : null;
 
-    // Compañía
-    const companyStrong = matchOne(html, [
-      /Companies:\s*<strong>(.*?)<\/strong>\s*<br>/i,
-      /Company:\s*<strong>(.*?)<\/strong>\s*<br>/i,
-      /Compañías?:\s*<strong>(.*?)<\/strong>\s*<br>/i,
-    ]);
-    const companyFallback = matchOne(html, [
-      /Companies:\s*([^<\n]+)\s*<br>/i,
-      /Company:\s*([^<\n]+)\s*<br>/i,
-      /Compañías?:\s*([^<\n]+)\s*<br>/i,
-    ]);
-    const company = textOrNull(companyStrong || companyFallback);
+    // ── Compañía ───────────────────────────────────────────
+    const company = matchOne(html, [
+      /Companies:[\s\S]*?<strong>([\s\S]*?)<\/strong>/i,
+      /Company:[\s\S]*?<strong>([\s\S]*?)<\/strong>/i,
+      /Publisher:[\s\S]*?<strong>([\s\S]*?)<\/strong>/i,
+      /Developer:[\s\S]*?<strong>([\s\S]*?)<\/strong>/i,
+      /Companies:\s*([^<\n\r]+)/i,
+      /Company:\s*([^<\n\r]+)/i,
+    ])?.replace(/<[^>]+>/g, '').trim() || null;
 
-    // Idiomas
+    // ── Idiomas ────────────────────────────────────────────
     const languages = matchOne(html, [
-      /Languages:\s*([^<\n]+)/i,
-      /Idiomas:\s*([^<\n]+)/i,
-    ]);
+      /Languages?:\s*([^<\n\r]+)/i,
+      /Idiomas?:\s*([^<\n\r]+)/i,
+    ])?.trim() || null;
 
-    // Tamaños
+    // ── Tamaños (ahora captura "from X GB" y rangos) ────────
     const originalSize = matchOne(html, [
-      /Original Size:\s*([^<\n]+)/i,
-      /Tamaño original:\s*([^<\n]+)/i,
-    ]);
+      /Original\s+Size[:\s]+([\d.,\s]+(?:GB|MB))/i,
+      /Tamaño original[:\s]+([\d.,\s]+(?:GB|MB))/i,
+    ])?.trim() || null;
 
     const repackSize = matchOne(html, [
-      /Repack Size:\s*([^<\n]+)/i,
-      /Tamaño del repack:\s*([^<\n]+)/i,
-    ]);
-    // Mirrors
-    const mirrors = [
-      ...new Set([
-        ...matchAll(html, /<a[^>]*href="(magnet:\?xt=urn:[^"]+)"[^>]*>/i),
-        ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>(?:Download|Mirror|CS\.RIN|Torrent)/i),
-        ...matchAll(html, /href="(https?:\/\/csrinru\.xyz[^"]+)"/i),
-      ]),
-    ].map(decodeEntities);
+      /Repack\s+Size[:\s]+((?:from\s*from\s*)?[\d.,\s]+(?:GB|MB)(?:\s*\/\s*[\d.,]+GB)?[^<\n]*)/i,
+      /Tamaño del repack[:\s]+((?:from\s*)?[\d.,\s]+(?:GB|MB)[^<\n]*)/i,
+    ])?.trim() || null;
 
-    const csrinLink =
-      matchOne(html, [/href="(magnet:\?xt=urn:[^"]+)"/i]) ||
-      mirrors.find((m) => m.startsWith('magnet:')) ||
-      null;
+    // ── Mirrors (magnet + HTTP + cs.rin) ────────────────────
+    const magnets = matchAll(html, /href=["'](magnet:\?xt=urn:btih:[^"']+)["']/i);
+    const httpMirrors = matchAll(html, /<a[^>]+href=["'](https?:\/\/[^"']+(?:1337x|rutracker|cs\.rin\.ru|fitgirl-repacks\.site)[^"']*)["'][^>]*>(?:Download|Mirror|Torrent|CS\.RIN)/i);
+    const csrinLinks = matchAll(html, /href=["'](https?:\/\/csrin\.ru[^"']+)["']/i);
 
-    // Screenshots
-    const allImages = [
-      ...new Set([
-        ...matchAll(html, /<img[^>]*src="(https?:\/\/[^"]+)"[^>]*>/i),
-        ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+\.(?:jpg|png))"[^>]*>/i),
-      ]),
+    const mirrors = [...new Set([...magnets, ...httpMirrors, ...csrinLinks])]
+      .map(decodeEntities)
+      .filter(Boolean);
+
+    const csrinLink = magnets[0] || mirrors.find(m => m.startsWith('magnet:')) || null;
+
+    // ── Screenshots (máx 8, evita imágenes basura) ──────────
+    const allImgs = [
+      ...matchAll(html, /<img[^>]+src=["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i),
+      ...matchAll(html, /<a[^>]+class=["']fancybox[^>]+href=["']([^"']+\.(?:jpg|jpeg|png))["']/i),
     ];
 
-    const screenshots = allImages
-      .filter((url) => !/torrent-stats\.info/i.test(url))
-      .filter((url) => /(screens?|ss|shot|gallery|cdn|images)/i.test(url) || /\.(jpg|png)$/i.test(url))
+    const screenshots = allImgs
+      .filter(url => /\/(screens?|shots?|gallery|cdn|imgur|postimg)\//i.test(url) || /\d{4,}\.(jpg|png)/i.test(url))
+      .filter(url => !/torrent-stats\.info|logo|banner|avatar/i.test(url))
       .slice(0, 8);
 
-    // Torrent-stats
-    const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
+    // ── Torrent-stats image ────────────────────────────────
+    const torrentStatsImage = matchOne(html, /(https?:\/\/torrent-stats\.info\/[^\s"']+\.png)/i);
 
-    // Características del repack
-    const repackFeaturesRaw = matchOne(html, [
-      /<h3>\s*Repack Features\s*<\/h3>\s*<ul>([\s\S]*?)<\/ul>/i,
-    ]);
+    // ── Repack Features ────────────────────────────────────
+    const repackFeaturesRaw = matchOne(html, /<h3[^>]*>Repack Features<\/h3>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i);
+    const repackFeatures = repackFeaturesRaw
+      ? decodeEntities(
+          repackFeaturesRaw
+            .replace(/<li[^>]*>/gi, '\n• ')
+            .replace(/<\/li>/gi, '')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim()
+        )
+      : null;
 
-    let repackFeatures = null;
-    if (repackFeaturesRaw) {
-      repackFeatures = decodeEntities(
-        repackFeaturesRaw
-          .replace(/<li[^>]*>\s*/gi, '\n• ') // salto de línea antes de cada bullet
-          .replace(/<\/li>/gi, '')
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/<\/p>/gi, '\n')
-          .replace(/<[^>]+>/g, '')
-          .replace(/\n{3,}/g, '\n\n')
-          .replace(/^\s*\n+/, '')
-          .trim()
-      );
-    }
-
-    // Información del juego
-    const gameInfoRaw =
-      matchOne(html, [/Game Description\s*:?([\s\S]*?)(?=\s*(?:<b|<strong|<h2|<h3|Download Mirrors))/i]) ||
-      null;
+    // ── Game Description ───────────────────────────────────
+    const gameInfoRaw = matchOne(html, /<strong>Game Description<\/strong>[\s\S]*?(?=<h3|<div class=["']download|<p><strong>)/i)
+                     || matchOne(html, /<h2[^>]*>Description<\/h2>[\s\S]*?(?=<h3|<div)/i);
 
     const gameInfo = gameInfoRaw
       ? decodeEntities(
           gameInfoRaw
-            .replace(/^(Game Description\s*:?\s*)/i, '')
             .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/p>/gi, '\n')
             .replace(/<[^>]+>/g, '')
+            .replace(/^Game Description[:\s]*/i, '')
             .trim()
         )
       : null;
@@ -201,13 +187,15 @@ export async function GET(req) {
       originalSize: textOrNull(originalSize),
       repackSize: textOrNull(repackSize),
       mirrors,
+      csrinLink,
       screenshots,
+      torrentStatsImage: textOrNull(torrentStatsImage),
       repackFeatures,
       gameInfo,
-      csrinLink,
-      torrentStatsImage,
-    });
+    }, { status: 200 });
+
   } catch (err) {
-    return NextResponse.json({ error: err?.message || 'Unknown error' }, { status: 500 });
+    console.error('FitGirl scraper error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500);
   }
 }
