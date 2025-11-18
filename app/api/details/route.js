@@ -91,16 +91,16 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-    // Géneros (limpiando enlaces)
+    // Géneros (corta en <br> y limpia enlaces)
     const genresRaw = matchOne(html, [/Genres\/Tags:\s*([\s\S]*?)<br>/i]);
     const genres = genresRaw
       ? decodeEntities(genresRaw.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1'))
       : null;
 
-    // Compañía
+    // Compañía (corta en <br>)
     const company = matchOne(html, [
-      /Companies:\s*<strong>(.*?)<\/strong>/i,
-      /Compañías?:\s*<strong>(.*?)<\/strong>/i,
+      /Companies:\s*<strong>(.*?)<\/strong><br>/i,
+      /Compañías?:\s*<strong>(.*?)<\/strong><br>/i,
     ]);
 
     // Idiomas
@@ -149,7 +149,7 @@ export async function GET(req) {
     // Imagen torrent-stats explícita
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Características del repack
+    // Características del repack (captura bloque <h3>Repack Features</h3><ul>...</ul>)
     const repackFeaturesRaw = matchOne(html, [
       /<h3>\s*Repack Features\s*<\/h3>\s*<ul>([\s\S]*?)<\/ul>/i,
     ]);
@@ -160,7 +160,10 @@ export async function GET(req) {
         repackFeaturesRaw
           .replace(/<li[^>]*>\s*/gi, '• ')
           .replace(/<\/li>/gi, '\n')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
           .replace(/<[^>]+>/g, '')
+          .replace(/\n{2,}/g, '\n')
           .trim()
       );
     }
