@@ -30,7 +30,7 @@ function decodeEntities(str) {
   const entities = {
     '&amp;': '&',
     '&quot;': '"',
-    '&#039;': "'",
+    '&#039;': "'',
     '&lt;': '<',
     '&gt;': '>',
     '&nbsp;': ' ',
@@ -51,7 +51,9 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const postUrl = searchParams.get('url');
-    if (!postUrl) return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
+    if (!postUrl) {
+      return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
+    }
 
     const res = await fetch(postUrl, {
       headers: {
@@ -62,7 +64,9 @@ export async function GET(req) {
       cache: 'no-store',
     });
 
-    if (!res.ok) return NextResponse.json({ error: `HTTP ${res.status}` }, { status: 502 });
+    if (!res.ok) {
+      return NextResponse.json({ error: `HTTP ${res.status}` }, { status: 502 });
+    }
 
     const rawHtml = await res.text();
     const html = decodeEntities(rawHtml);
@@ -82,7 +86,7 @@ export async function GET(req) {
       /<a[^>]+class=["']fancybox[^>]+href=["']([^"']+)/i,
     ]);
 
-    // ── Géneros (muy robusto) ──────────────────────────────
+    // ── Géneros ───────────────────────────────────────────
     const genresBlock = matchOne(html, [
       /Genres\/Tags:[\s\S]*?(<br|<p|<\/p|<ul|<\/div)/i,
       /Genres\/Tags:([^<]+(<br|<\/p))/i,
@@ -90,7 +94,7 @@ export async function GET(req) {
 
     const genres = genresBlock
       ? genresBlock
-          .replace(/<[^>]+>/g, '')           // quitar todo HTML
+          .replace(/<[^>]+>/g, '')
           .replace(/Genres\/Tags:?\s*/i, '')
           .replace(/\s+/g, ' ')
           .trim()
@@ -109,24 +113,24 @@ export async function GET(req) {
       /Company:\s*([^<\n\r]+)/i,
     ])?.replace(/<[^>]+>/g, '').trim() || null;
 
-    // ── Idiomas ────────────────────────────────────────────
+    // ── Idiomas ───────────────────────────────────────────
     const languages = matchOne(html, [
       /Languages?:\s*([^<\n\r]+)/i,
       /Idiomas?:\s*([^<\n\r]+)/i,
     ])?.trim() || null;
 
-    // ── Tamaños (ahora captura "from X GB" y rangos) ────────
+    // ── Tamaños ───────────────────────────────────────────
     const originalSize = matchOne(html, [
       /Original\s+Size[:\s]+([\d.,\s]+(?:GB|MB))/i,
       /Tamaño original[:\s]+([\d.,\s]+(?:GB|MB))/i,
     ])?.trim() || null;
 
     const repackSize = matchOne(html, [
-      /Repack\s+Size[:\s]+((?:from\s*from\s*)?[\d.,\s]+(?:GB|MB)(?:\s*\/\s*[\d.,]+GB)?[^<\n]*)/i,
+      /Repack\s+Size[:\s]+((?:from\s*)?[\d.,\s]+(?:GB|MB)(?:\s*\/\s*[\d.,]+GB)?[^<\n]*)/i,
       /Tamaño del repack[:\s]+((?:from\s*)?[\d.,\s]+(?:GB|MB)[^<\n]*)/i,
     ])?.trim() || null;
 
-    // ── Mirrors (magnet + HTTP + cs.rin) ────────────────────
+    // ── Mirrors ───────────────────────────────────────────
     const magnets = matchAll(html, /href=["'](magnet:\?xt=urn:btih:[^"']+)["']/i);
     const httpMirrors = matchAll(html, /<a[^>]+href=["'](https?:\/\/[^"']+(?:1337x|rutracker|cs\.rin\.ru|fitgirl-repacks\.site)[^"']*)["'][^>]*>(?:Download|Mirror|Torrent|CS\.RIN)/i);
     const csrinLinks = matchAll(html, /href=["'](https?:\/\/csrin\.ru[^"']+)["']/i);
@@ -137,7 +141,7 @@ export async function GET(req) {
 
     const csrinLink = magnets[0] || mirrors.find(m => m.startsWith('magnet:')) || null;
 
-    // ── Screenshots (máx 8, evita imágenes basura) ──────────
+    // ── Screenshots ───────────────────────────────────────
     const allImgs = [
       ...matchAll(html, /<img[^>]+src=["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i),
       ...matchAll(html, /<a[^>]+class=["']fancybox[^>]+href=["']([^"']+\.(?:jpg|jpeg|png))["']/i),
@@ -148,10 +152,10 @@ export async function GET(req) {
       .filter(url => !/torrent-stats\.info|logo|banner|avatar/i.test(url))
       .slice(0, 8);
 
-    // ── Torrent-stats image ────────────────────────────────
+    // ── Torrent-stats ─────────────────────────────────────
     const torrentStatsImage = matchOne(html, /(https?:\/\/torrent-stats\.info\/[^\s"']+\.png)/i);
 
-    // ── Repack Features ────────────────────────────────────
+    // ── Repack Features ───────────────────────────────────
     const repackFeaturesRaw = matchOne(html, /<h3[^>]*>Repack Features<\/h3>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i);
     const repackFeatures = repackFeaturesRaw
       ? decodeEntities(
@@ -164,7 +168,7 @@ export async function GET(req) {
         )
       : null;
 
-    // ── Game Description ───────────────────────────────────
+    // ── Game Description ──────────────────────────────────
     const gameInfoRaw = matchOne(html, /<strong>Game Description<\/strong>[\s\S]*?(?=<h3|<div class=["']download|<p><strong>)/i)
                      || matchOne(html, /<h2[^>]*>Description<\/h2>[\s\S]*?(?=<h3|<div)/i);
 
@@ -178,6 +182,7 @@ export async function GET(req) {
         )
       : null;
 
+    // ── Respuesta final (¡paréntesis bien cerrados!) ──────
     return NextResponse.json({
       title: textOrNull(title),
       cover: textOrNull(cover),
@@ -196,6 +201,9 @@ export async function GET(req) {
 
   } catch (err) {
     console.error('FitGirl scraper error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
