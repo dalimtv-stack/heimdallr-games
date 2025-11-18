@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import crypto from 'crypto';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -38,10 +39,14 @@ export async function GET(request) {
 
       const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
       const postUrl = link.attr('href') || '';
-      const id = postUrl.split('#')[1] || Date.now().toString();
+
+      // ID estable basado en hash del postUrl
+      const id = postUrl
+        ? crypto.createHash('md5').update(postUrl).digest('hex')
+        : Date.now().toString();
 
       let cover = '';
-      const img = article.find('img[src*="imageban.ru"]').first();
+      const img = article.find('img').first();
       if (img.length) {
         cover = img.attr('src') || img.attr('data-src') || img.attr('data-lazy-src') || '';
         if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
@@ -54,11 +59,17 @@ export async function GET(request) {
       games.push({ id, title, cover, postUrl });
     });
 
-    const totalFound = games.length;
-    const hasMore = totalFound >= 9;   // ← ESTA ES LA CLAVE
+    // Detección de paginación real
+    let hasMore = false;
+    if (tab === 'todos_az') {
+      // En el listado A-Z, el plugin usa enlaces con lcp_page
+      hasMore = $('a[href*="lcp_page0"]').length > 0;
+    } else {
+      hasMore = $('.pagination .next').length > 0;
+    }
 
     return NextResponse.json({
-      games: games.slice(0, 30),
+      games,
       hasMore
     });
   } catch (err) {
