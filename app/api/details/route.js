@@ -112,19 +112,19 @@ export async function GET(req) {
 
     // Idiomas
     const languages = matchOne(html, [
-      /Languages:\s*([^<\n]+)/i,
-      /Idiomas:\s*([^<\n]+)/i,
+      /Languages:\s*([^<\n]+)<br/i,
+      /Idiomas:\s*([^<\n]+)<br/i,
     ]);
 
     // Tamaños
     const originalSize = matchOne(html, [
-      /Original Size:\s*([^<\n]+)/i,
-      /Tamaño original:\s*([^<\n]+)/i,
+      /Original Size:\s*([^<\n]+)<br/i,
+      /Tamaño original:\s*([^<\n]+)<br/i,
     ]);
 
     const repackSize = matchOne(html, [
-      /Repack Size:\s*([^<\n]+)/i,
-      /Tamaño del repack:\s*([^<\n]+)/i,
+      /Repack Size:\s*([^<\n]+)<br/i,
+      /Tamaño del repack:\s*([^<\n]+)<br/i,
     ]);
     // Mirrors
     const mirrors = [
