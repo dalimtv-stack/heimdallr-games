@@ -91,41 +91,58 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-    // Géneros
-    const genresRaw = matchOne(html, [/Genres\/Tags:\s*([\s\S]*?)<br>/i]);
-    const genres = genresRaw
-      ? decodeEntities(genresRaw.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1'))
-      : null;
+	// ── Géneros (ahora sí funciona con <a>, <strong>, saltos, etc.)
+	const genresRaw = matchOne(html, [
+	  /Genres\/Tags:\s*([\s\S]*?)(?:<br|<p|<\/p|<\/div|\n\n)/i,
+	  /Genres\/Tags:\s*([^<\r\n]+)/i
+	]);
+	const genres = genresRaw
+	  ? decodeEntities(
+		  genresRaw
+			.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1')
+			.replace(/<[^>]+>/g, '')
+			.replace(/Genres\/Tags:?/gi, '')
+			.trim()
+		)
+	  : null;
 
-    // Compañía
-    const companyStrong = matchOne(html, [
-      /Companies:\s*<strong>(.*?)<\/strong>\s*<br>/i,
-      /Company:\s*<strong>(.*?)<\/strong>\s*<br>/i,
-      /Compañías?:\s*<strong>(.*?)<\/strong>\s*<br>/i,
-    ]);
-    const companyFallback = matchOne(html, [
-      /Companies:\s*([^<\n]+)\s*<br>/i,
-      /Company:\s*([^<\n]+)\s*<br>/i,
-      /Compañías?:\s*([^<\n]+)\s*<br>/i,
-    ]);
-    const company = textOrNull(companyStrong || companyFallback);
+	// ── Compañía (funciona con Companies, Company, Compañías, con o sin <strong>)
+	const company = textOrNull(
+	  matchOne(html, [
+		/Companies?:\s*<strong>(.*?)<\/strong>/i,
+		/Company:\s*<strong>(.*?)<\/strong>/i,
+		/Compañías?:\s*<strong>(.*?)<\/strong>/i,
+		/Publisher:\s*<strong>(.*?)<\/strong>/i,
+		/Developer:\s*<strong>(.*?)<\/strong>/i,
+		/Companies?:\s*([^<\r\n]+)/i,
+		/Company:\s*([^<\r\n]+)/i,
+		/Compañías?:\s*([^<\r\n]+)/i
+	  ])
+	);
 
-    // Idiomas
-    const languages = matchOne(html, [
-      /Languages:\s*([^<\n]+)<br/i,
-      /Idiomas:\s*([^<\n]+)<br/i,
-    ]);
+	// ── Idiomas 
+	const languages = textOrNull(
+	  matchOne(html, [
+		/Languages:\s*([^<\r\n]+)/i,
+		/Languages?:\s*(ENG|MULTI\d+|RUS\/ENG|.*?)\b/i,
+		/Idiomas?:\s*([^<\r\n]+)/i
+	  ])
+	);
+	// ── Original Size (captura 68.4 GB, 118,5 GB, etc.)
+	const originalSize = textOrNull(
+	  matchOne(html, [
+		/Original\s+Size[:\s]+([\d.,\s]+ ?(?:GB|MB))/i,
+		/Tamaño original[:\s]+([\d.,\s]+ ?(?:GB|MB))/i
+	  ])
+	);
 
-    // Tamaños
-    const originalSize = matchOne(html, [
-      /Original Size:\s*([^<\n]+)<br/i,
-      /Tamaño original:\s*([^<\n]+)<br/i,
-    ]);
-
-    const repackSize = matchOne(html, [
-      /Repack Size:\s*([^<\n]+)<br/i,
-      /Tamaño del repack:\s*([^<\n]+)<br/i,
-    ]);
+	// ── Repack Size (captura "from 39.2 GB", "39.2 GB", "8.7 – 12.3 GB", etc.)
+	const repackSize = textOrNull(
+	  matchOne(html, [
+		/Repack\s+Size[:\s]+((?:from\s*)?[\d.,\s]+(?:GB|MB)(?:\s*(?:[\/–-]\s*[\d.,]+ ?(?:GB|MB))?)?[^<\r\n]*)/i,
+		/Tamaño del repack[:\s]+((?:from\s*)?[\d.,\s]+(?:GB|MB)[^<\r\n]*)/i
+	  ])
+	);
     // Mirrors
     const mirrors = [
       ...new Set([
