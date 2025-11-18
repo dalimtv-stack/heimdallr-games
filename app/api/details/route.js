@@ -25,8 +25,9 @@ function matchAll(html, pattern, groupIndex = 1, limit = 50) {
   return out;
 }
 
+// Regex ampliado para capturar etiquetas HTML antes del label
 function normalizeLabelValue(line) {
-  const m = line.match(/^\s*([A-Za-zÀ-ÿ0-9\s\/\-\(\)]+)\s*:\s*(.+)$/);
+  const m = line.match(/^\s*(?:<[^>]+>)*\s*([A-Za-zÀ-ÿ0-9\s\/\-\(\)]+)\s*:\s*(.+)$/i);
   if (!m) return null;
   return { label: m[1].trim(), value: m[2].trim() };
 }
@@ -176,13 +177,8 @@ export async function GET(req) {
     // Características del repack
     const repackFeaturesBlockHtml =
       matchOne(html, [
-        /(?:<b[^>]*>|<strong[^>]*>)\s*(Features Repack|Características del repack)\s*(?:<\/b>|<\/strong>)([\s\S]*?)(?=<(?:h2|h3|b|strong)[^>]*>)/is,
-      ]) ||
-      matchOne(html, [
-        /(?:Features Repack|Características del repack)[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/is,
-      ]) ||
-      matchOne(html, [
-        /(?:Features Repack|Características del repack)[\s\S]*?(<p[^>]*>[\s\S]*?<\/p>)/is,
+        /(?:Features Repack|Características del repack)[\s\S]*?(<ul[\s\S]*?<\/ul>)/is,
+        /(?:Features Repack|Características del repack)[\s\S]*?(<p[\s\S]*?<\/p>)/is,
       ]) ||
       extractSectionByHeading(html, 'Features Repack') ||
       extractSectionByHeading(html, 'Características del repack') ||
@@ -190,16 +186,13 @@ export async function GET(req) {
 
     let repackFeatures = null;
     if (repackFeaturesBlockHtml) {
-      const withBullets = repackFeaturesBlockHtml
-        .replace(/<li[^>]*>\s*/gi, '• ')
-        .replace(/<\/li>/gi, '\n');
-
       repackFeatures = decodeEntities(
-        withBullets
+        repackFeaturesBlockHtml
+          .replace(/<li[^>]*>\s*/gi, '• ')
+          .replace(/<\/li>/gi, '\n')
           .replace(/<br\s*\/?>/gi, '\n')
           .replace(/<\/p>/gi, '\n')
           .replace(/<[^>]+>/g, '')
-          .replace(/\n{3,}/g, '\n\n')
           .trim()
       );
     }
