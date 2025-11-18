@@ -42,17 +42,6 @@ function extractSectionByHeading(html, headingText) {
   return textOrNull(tail);
 }
 
-function cleanHtmlToText(html) {
-  return textOrNull(
-    (html || '')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>/gi, '\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim()
-  );
-}
-
 function decodeEntities(str) {
   if (!str) return null;
   return str
@@ -96,7 +85,7 @@ export async function GET(req) {
       ]) || matchOne(html, [/itemprop="name"[^>]*content="(.*?)"/is]);
 
     if (title && title.includes('FitGirl Repacks')) {
-      title = null; // descartar título genérico
+      title = null;
     }
 
     // Carátula
@@ -113,14 +102,16 @@ export async function GET(req) {
 
     // Bloque de info
     const infoBlockText =
-      cleanHtmlToText(
-        matchOne(html, [/class="entry-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-          matchOne(html, [/class="post-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-          matchOne(html, [/class="content"[^>]*>([\s\S]*?)<\/div>/is]) ||
-          html
-      ) || '';
+      matchOne(html, [/class="entry-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
+      matchOne(html, [/class="post-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
+      matchOne(html, [/class="content"[^>]*>([\s\S]*?)<\/div>/is]) ||
+      html;
 
-    const lines = infoBlockText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const lines = decodeEntities(infoBlockText)
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
     const kv = {};
     for (const line of lines) {
       const pair = normalizeLabelValue(line);
@@ -135,7 +126,7 @@ export async function GET(req) {
     const originalSize = kv['original size'] || kv['tamaño original'] || null;
     const repackSize = kv['repack size'] || kv['tamaño del repack'] || null;
 
-    // Mirrors
+    // Mirrors (decodificados)
     const mirrors = [
       ...new Set([
         ...matchAll(html, /<a[^>]*href="(magnet:\?xt=urn:[^"]+)"[^>]*>/i),
@@ -162,22 +153,24 @@ export async function GET(req) {
       .filter((url) => /(screens?|ss|shot|gallery|cdn|images)/i.test(url) || /\.(jpg|png)$/i.test(url))
       .slice(0, 8);
 
-    // Imagen torrent-stats explícita (fix: usar grupo de captura)
+    // Imagen torrent-stats explícita
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Secciones: Features Repack (fix: patrones más amplios)
+    // Secciones
     const repackFeaturesRaw =
       extractSectionByHeading(html, 'Features Repack') ||
       extractSectionByHeading(html, 'Características del repack') ||
-      matchOne(
-        html,
-        [
-          /<b[^>]*>\s*Features[^<]*<\/b>([\s\S]*?)(?:<(?:h2|h3|b)[^>]*>)/is,
-          /<strong[^>]*>\s*Features[^<]*<\/strong>([\s\S]*?)(?:<(?:h2|h3|b)[^>]*>)/is,
-          /Features\s*:?\s*([\s\S]*?)(?:<(?:h2|h3|b)[^>]*>)/is,
-        ]
-      ) ||
       null;
+
+    const repackFeatures = repackFeaturesRaw
+      ? decodeEntities(
+          repackFeaturesRaw
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .trim()
+        )
+      : null;
 
     const gameInfoRaw =
       extractSectionByHeading(html, 'Game Description') ||
@@ -185,8 +178,16 @@ export async function GET(req) {
       extractSectionByHeading(html, 'Información del juego') ||
       null;
 
-    const repackFeatures = cleanHtmlToText(repackFeaturesRaw);
-    const gameInfo = cleanHtmlToText(gameInfoRaw);
+    const gameInfo = gameInfoRaw
+      ? decodeEntities(
+          gameInfoRaw
+            .replace(/^(Game Description\s*:?\s*)/i, '')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .trim()
+        )
+      : null;
 
     return NextResponse.json({
       title: textOrNull(title),
