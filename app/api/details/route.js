@@ -3,13 +3,13 @@ import { NextResponse } from 'next/server';
 // Helpers
 function textOrNull(str) {
   const s = (str || '').trim();
-  return s.length ? s : null;
+  return s && s !== 'N/A' ? s : null;
 }
 
 function matchOne(html, patterns) {
   for (const re of patterns) {
     const m = html.match(re);
-    if (m && m[1]) return textOrNull(m[1]);
+    if (m && m[1]) return m[1].trim();
   }
   return null;
 }
@@ -19,7 +19,7 @@ function matchAll(html, pattern, groupIndex = 1, limit = 50) {
   let m;
   const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
   while ((m = re.exec(html)) && out.length < limit) {
-    const v = textOrNull(m[groupIndex]);
+    const v = (m[groupIndex] || '').trim();
     if (v) out.push(v);
   }
   return out;
@@ -27,13 +27,40 @@ function matchAll(html, pattern, groupIndex = 1, limit = 50) {
 
 function decodeEntities(str) {
   if (!str) return null;
+  const named = {
+    '&amp;': '&',
+    '&quot;': '"',
+    '&#039;': "'",
+    '&lt;': '<',
+    '&gt;': '>',
+    '&hellip;': '…',
+    '&rarr;': '→',
+    '&larr;': '←',
+    '&ndash;': '–',
+    '&mdash;': '—',
+    '&#8211;': '–',
+    '&#8212;': '—',
+  };
   return str
-    .replace(/&#(\d+);/g, (m, code) => String.fromCharCode(code))
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/(&[a-zA-Z]+;|&#\d+;)/g, (m) => named[m] ?? m);
+}
+
+function sanitizeValue(v) {
+  if (!v) return null;
+  const cutMarkers = [
+    'Download Mirrors',
+    'Filehoster',
+    'Continue reading',
+    'Selective Download',
+    '<',
+  ];
+  let out = v;
+  for (const mk of cutMarkers) {
+    const i = out.indexOf(mk);
+    if (i > -1) out = out.slice(0, i);
+  }
+  return textOrNull(decodeEntities(out).replace(/\s+/g, ' ').trim());
 }
 
 export async function GET(req) {
@@ -57,7 +84,8 @@ export async function GET(req) {
       return NextResponse.json({ error: `Failed to fetch: ${res.status}` }, { status: 502 });
     }
 
-    const html = await res.text();
+    const rawHtml = await res.text();
+    const html = decodeEntities(rawHtml);
 
     // Título
     let title =
@@ -83,37 +111,41 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-    // Géneros y compañía directos
-    const genres =
-      matchOne(html, [/Genres:\s*([^<\n]+)/i]) ||
-      matchOne(html, [/Géneros:\s*([^<\n]+)/i]) ||
-      null;
+    // Campos principales con límites (evita contaminación de mirrors/filehosters)
+    const genres = sanitizeValue(
+      matchOne(html, [
+        /(?:<[^>]*>)*\s*(?:Genres|Géneros)\s*:\s*([\s\S]*?)(?=\s*(?:Company|Developer|Compañía|Languages|Idiomas|Original Size|Tamaño original|Repack Size|Tamaño del repack|Download Mirrors|Filehoster|<))/i,
+      ])
+    );
 
-    const company =
-      matchOne(html, [/Company:\s*([^<\n]+)/i]) ||
-      matchOne(html, [/Developer:\s*([^<\n]+)/i]) ||
-      matchOne(html, [/Compañía:\s*([^<\n]+)/i]) ||
-      null;
+    const company = sanitizeValue(
+      matchOne(html, [
+        /(?:<[^>]*>)*\s*(?:Company|Compañía|Developer)\s*:\s*([\s\S]*?)(?=\s*(?:Genres|Géneros|Languages|Idiomas|Original Size|Tamaño original|Repack Size|Tamaño del repack|Download Mirrors|Filehoster|<))/i,
+      ])
+    );
 
-    const languages =
-      matchOne(html, [/Languages:\s*([^<\n]+)/i]) ||
-      matchOne(html, [/Idiomas:\s*([^<\n]+)/i]) ||
-      null;
+    const languages = sanitizeValue(
+      matchOne(html, [
+        /(?:<[^>]*>)*\s*(?:Languages|Idiomas)\s*:\s*([\s\S]*?)(?=\s*(?:Genres|Géneros|Company|Compañía|Developer|Original Size|Tamaño original|Repack Size|Tamaño del repack|Download Mirrors|Filehoster|<))/i,
+      ])
+    );
 
-    const originalSize =
-      matchOne(html, [/Original Size:\s*([^<\n]+)/i]) ||
-      matchOne(html, [/Tamaño original:\s*([^<\n]+)/i]) ||
-      null;
+    const originalSize = sanitizeValue(
+      matchOne(html, [
+        /(?:<[^>]*>)*\s*(?:Original Size|Tamaño original)\s*:\s*([\s\S]*?)(?=\s*(?:Repack Size|Tamaño del repack|Download Mirrors|Filehoster|<))/i,
+      ])
+    );
 
-    const repackSize =
-      matchOne(html, [/Repack Size:\s*([^<\n]+)/i]) ||
-      matchOne(html, [/Tamaño del repack:\s*([^<\n]+)/i]) ||
-      null;
+    const repackSize = sanitizeValue(
+      matchOne(html, [
+        /(?:<[^>]*>)*\s*(?:Repack Size|Tamaño del repack)\s*:\s*([\s\S]*?)(?=\s*(?:Download Mirrors|Filehoster|<))/i,
+      ])
+    );
     // Mirrors (decodificados)
     const mirrors = [
       ...new Set([
         ...matchAll(html, /<a[^>]*href="(magnet:\?xt=urn:[^"]+)"[^>]*>/i),
-        ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>(?:Download|Mirror|CS.RIN|Torrent)/i),
+        ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>(?:Download|Mirror|CS\.RIN|Torrent)/i),
         ...matchAll(html, /href="(https?:\/\/csrinru\.xyz[^"]+)"/i),
       ]),
     ].map(decodeEntities);
@@ -139,52 +171,56 @@ export async function GET(req) {
     // Imagen torrent-stats explícita
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Características del repack (captura directa del bloque)
+    // Características del repack: entre el encabezado y el siguiente bloque/heading
     const repackFeaturesRaw =
       matchOne(html, [
-        /<b[^>]*>\s*Features Repack\s*<\/b>([\s\S]*?)(?=<(?:h2|h3|b|strong)[^>]*>)/i,
-        /<strong[^>]*>\s*Features Repack\s*<\/strong>([\s\S]*?)(?=<(?:h2|h3|b|strong)[^>]*>)/i,
+        /<b[^>]*>\s*Features Repack\s*<\/b>\s*([\s\S]*?)(?=\s*(?:<b|<strong|<h2|<h3|Download Mirrors|Selective Download))/i,
+        /<strong[^>]*>\s*Features Repack\s*<\/strong>\s*([\s\S]*?)(?=\s*(?:<b|<strong|<h2|<h3|Download Mirrors|Selective Download))/i,
       ]) || null;
 
     let repackFeatures = null;
     if (repackFeaturesRaw) {
-      repackFeatures = decodeEntities(
-        repackFeaturesRaw
-          .replace(/<li[^>]*>\s*/gi, '• ')
-          .replace(/<\/li>/gi, '\n')
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/<\/p>/gi, '\n')
-          .replace(/<[^>]+>/g, '')
+      const withBullets = repackFeaturesRaw
+        .replace(/<li[^>]*>\s*/gi, '• ')
+        .replace(/<\/li>/gi, '\n');
+
+      repackFeatures = textOrNull(
+        decodeEntities(
+          withBullets
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+        )
+          .replace(/\n{3,}/g, '\n\n')
           .trim()
       );
     }
 
-    // Información del juego
+    // Información del juego (limpia encabezado)
     const gameInfoRaw =
-      matchOne(html, [/Game Description\s*:?([\s\S]*?)(?=<(?:h2|h3|b|strong)[^>]*>)/i]) ||
-      extractSectionByHeading(html, 'Game Info') ||
-      extractSectionByHeading(html, 'Información del juego') ||
+      matchOne(html, [/Game Description\s*:?([\s\S]*?)(?=\s*(?:<b|<strong|<h2|<h3|Download Mirrors))/i]) ||
       null;
 
-    const gameInfo = gameInfoRaw
-      ? decodeEntities(
-          gameInfoRaw
-            .replace(/^(Game Description\s*:?\s*)/i, '')
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/p>/gi, '\n')
-            .replace(/<[^>]+>/g, '')
-            .trim()
-        )
-      : null;
+    const gameInfo = textOrNull(
+      gameInfoRaw
+        ? decodeEntities(
+            gameInfoRaw
+              .replace(/^(Game Description\s*:?\s*)/i, '')
+              .replace(/<br\s*\/?>/gi, '\n')
+              .replace(/<\/p>/gi, '\n')
+              .replace(/<[^>]+>/g, '')
+          ).trim()
+        : null
+    );
 
     return NextResponse.json({
       title: textOrNull(title),
       cover: textOrNull(cover),
-      genres: textOrNull(genres),
-      company: textOrNull(company),
-      languages: textOrNull(languages),
-      originalSize: textOrNull(originalSize),
-      repackSize: textOrNull(repackSize),
+      genres,
+      company,
+      languages,
+      originalSize,
+      repackSize,
       mirrors,
       screenshots,
       repackFeatures,
