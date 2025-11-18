@@ -91,58 +91,59 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-	// ── Géneros (ahora sí funciona con <a>, <strong>, saltos, etc.)
-	const genresRaw = matchOne(html, [
-	  /Genres\/Tags:\s*([\s\S]*?)(?:<br|<p|<\/p|<\/div|\n\n)/i,
-	  /Genres\/Tags:\s*([^<\r\n]+)/i
-	]);
-	const genres = genresRaw
-	  ? decodeEntities(
-		  genresRaw
-			.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1')
-			.replace(/<[^>]+>/g, '')
-			.replace(/Genres\/Tags:?/gi, '')
-			.trim()
-		)
-	  : null;
-
-	// ── Compañía (funciona con Companies, Company, Compañías, con o sin <strong>)
-	const company = textOrNull(
-	  matchOne(html, [
-		/Companies?:\s*<strong>(.*?)<\/strong>/i,
-		/Company:\s*<strong>(.*?)<\/strong>/i,
-		/Compañías?:\s*<strong>(.*?)<\/strong>/i,
-		/Publisher:\s*<strong>(.*?)<\/strong>/i,
-		/Developer:\s*<strong>(.*?)<\/strong>/i,
-		/Companies?:\s*([^<\r\n]+)/i,
-		/Company:\s*([^<\r\n]+)/i,
-		/Compañías?:\s*([^<\r\n]+)/i
-	  ])
-	);
-
-	// ── Idiomas 
-	const languages = textOrNull(
-	  matchOne(html, [
-		/Languages:\s*([^<\r\n]+)/i,
-		/Languages?:\s*(ENG|MULTI\d+|RUS\/ENG|.*?)\b/i,
-		/Idiomas?:\s*([^<\r\n]+)/i
-	  ])
-	);
-	// ── Original Size (captura 68.4 GB, 118,5 GB, etc.)
-	const originalSize = textOrNull(
-	  matchOne(html, [
-		/Original\s+Size[:\s]+([\d.,\s]+ ?(?:GB|MB))/i,
-		/Tamaño original[:\s]+([\d.,\s]+ ?(?:GB|MB))/i
-	  ])
-	);
-
-	// ── Repack Size (captura "from 39.2 GB", "39.2 GB", "8.7 – 12.3 GB", etc.)
-	const repackSize = textOrNull(
-	  matchOne(html, [
-		/Repack\s+Size[:\s]+((?:from\s*)?[\d.,\s]+(?:GB|MB)(?:\s*(?:[\/–-]\s*[\d.,]+ ?(?:GB|MB))?)?[^<\r\n]*)/i,
-		/Tamaño del repack[:\s]+((?:from\s*)?[\d.,\s]+(?:GB|MB)[^<\r\n]*)/i
-	  ])
-	);
+		// ── Géneros (ahora sí funciona perfecto)
+		const genresRaw = matchOne(html, [
+		  /Genres\/Tags:\s*<strong>([\s\S]*?)<\/strong>/i,
+		  /Genres\/Tags:\s*([\s\S]*?)(?:<br|<p|<\/p)/i
+		]);
+		const genres = genresRaw
+		  ? decodeEntities(
+		      genresRaw
+		        .replace(/<[^>]+>/g, '')           // quita todo HTML
+		        .replace(/Genres\/Tags:?/gi, '')
+		        .replace(/\s+/g, ' ')
+		        .trim()
+		        .split(/,\s*|\s*\/\s*|\s+and\s+/i)
+		        .map(s => s.trim())
+		        .filter(Boolean)
+		        .join(', ')
+		    )
+		  : null;
+		
+		// ── Compañía
+		const company = textOrNull(
+		  matchOne(html, [
+		    /Companies:\s*<strong>([\s\S]*?)<\/strong>/i,
+		    /Company:\s*<strong>([\s\S]*?)<\/strong>/i,
+		    /Publisher:\s*<strong>([\s\S]*?)<\/strong>/i,
+		    /Developer:\s*<strong>([\s\S]*?)<\/strong>/i,
+		    /Companies:\s*([^<\r\n]+)/i
+		  ])
+		);
+		
+		// ── Idiomas
+		const languages = textOrNull(
+		  matchOne(html, [
+		    /Languages:\s*<strong>([\s\S]*?)<\/strong>/i,
+		    /Languages?:\s*([^<\r\n]+)/i
+		  ])
+		);
+		
+		// ── Original Size
+		const originalSize = textOrNull(
+		  matchOne(html, [
+		    /Original\s+Size:\s*<strong>([\d.,\s]+ ?(?:GB|MB))<\/strong>/i,
+		    /Original\s+Size:\s*([\d.,\s]+ ?(?:GB|MB))/i
+		  ])
+		);
+		
+		// ── Repack Size (captura "from X GB", rangos, [Selective Download], etc.)
+		const repackSize = textOrNull(
+		  matchOne(html, [
+		    /Repack\s+Size:\s*<strong>((?:from )?[\d.,\s]+ ?(?:GB|MB)(?:[^<]*))<\/strong>/i,
+		    /Repack\s+Size:\s*((?:from )?[\d.,\s]+ ?(?:GB|MB)[^<\r\n]*)/i
+		  ])
+		);
     // Mirrors
     const mirrors = [
       ...new Set([
