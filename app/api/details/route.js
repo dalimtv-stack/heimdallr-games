@@ -177,24 +177,26 @@ export async function GET(req) {
     // Torrent-stats
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // ── Características del repack (con saltos de línea correctos)
-const repackFeaturesRaw = matchOne(html, [
-  /<h3[^>]*>\s*Repack Features\s*<\/h3>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i
-]);
-
-const repackFeatures = repackFeaturesRaw
-  ? decodeEntities(
-      repackFeaturesRaw
-        .replace(/<\/?li[^>]*>/gi, '')           // quita las etiquetas <li>
-        .replace(/<\/?ul[^>]*>/gi, '')           // por si acaso
-        .replace(/<br\s*\/?>/gi, '\n')           // respeta <br> si los hay
-        .replace(/<[^>]+>/g, '')                 // quita cualquier otro HTML
-        .replace(/^\s*[\-\•\*]\s*/gim, '• ')     // normaliza bullets a • 
-        .replace(/\s*[\-\•\*]\s*/g, '\n• ')      // asegura salto de línea antes de cada bullet
-        .replace(/\n{3,}/g, '\n\n')              // máximo 2 saltos seguidos
-        .trim()
-    )
-  : null;
+    // ── Repack Features (salto de línea ANTES de cada •)
+	const repackFeaturesRaw = matchOne(html, [
+	  /<h3[^>]*>\s*Repack Features\s*<\/h3>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i
+	]);
+	
+	const repackFeatures = repackFeaturesRaw
+	  ? decodeEntities(
+	      repackFeaturesRaw
+	        .replace(/<\/?li[^>]*>/gi, '')           // quita TODAS las <li>
+	        .replace(/<\/?ul[^>]*>/gi, '')           // quita <ul>
+	        .replace(/<br\s*\/?>/gi, '\n')           // convierte <br> a salto
+	        .replace(/<[^>]+>/g, '')                 // quita resto HTML
+	        .replace(/\n\s*\n\s*\n/g, '\n\n')        // limpia saltos múltiples
+	        .replace(/^•|\s•/gm, '\n• ')             // salto ANTES de cada •
+	        .replace(/^\s*•\s*/gm, '• ')             // normaliza bullets al inicio de línea
+	        .replace(/\s{3,}/g, ' ')                 // limpia espacios múltiples
+	        .replace(/^\s+|\s+$/g, '')               // trim final
+	        .trim()
+	    )
+	  : null;
 
     // Información del juego
     const gameInfoRaw =
