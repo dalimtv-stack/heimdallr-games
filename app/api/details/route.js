@@ -35,32 +35,12 @@ function decodeEntities(str) {
     '&gt;': '>',
     '&hellip;': '…',
     '&rarr;': '→',
-    '&larr;': '←',
-    '&ndash;': '–',
-    '&mdash;': '—',
     '&#8211;': '–',
     '&#8212;': '—',
   };
   return str
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     .replace(/(&[a-zA-Z]+;|&#\d+;)/g, (m) => named[m] ?? m);
-}
-
-function sanitizeValue(v) {
-  if (!v) return null;
-  const cutMarkers = [
-    'Download Mirrors',
-    'Filehoster',
-    'Continue reading',
-    'Selective Download',
-    '<',
-  ];
-  let out = v;
-  for (const mk of cutMarkers) {
-    const i = out.indexOf(mk);
-    if (i > -1) out = out.slice(0, i);
-  }
-  return textOrNull(decodeEntities(out).replace(/\s+/g, ' ').trim());
 }
 
 export async function GET(req) {
@@ -111,36 +91,34 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-    // Campos principales con límites (evita contaminación de mirrors/filehosters)
-    const genres = sanitizeValue(
-      matchOne(html, [
-        /(?:<[^>]*>)*\s*(?:Genres|Géneros)\s*:\s*([\s\S]*?)(?=\s*(?:Company|Developer|Compañía|Languages|Idiomas|Original Size|Tamaño original|Repack Size|Tamaño del repack|Download Mirrors|Filehoster|<))/i,
-      ])
-    );
+    // Géneros (limpiando enlaces)
+    const genresRaw = matchOne(html, [/Genres\/Tags:\s*([\s\S]*?)<br>/i]);
+    const genres = genresRaw
+      ? decodeEntities(genresRaw.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1'))
+      : null;
 
-    const company = sanitizeValue(
-      matchOne(html, [
-        /(?:<[^>]*>)*\s*(?:Company|Compañía|Developer)\s*:\s*([\s\S]*?)(?=\s*(?:Genres|Géneros|Languages|Idiomas|Original Size|Tamaño original|Repack Size|Tamaño del repack|Download Mirrors|Filehoster|<))/i,
-      ])
-    );
+    // Compañía
+    const company = matchOne(html, [
+      /Companies:\s*<strong>(.*?)<\/strong>/i,
+      /Compañías?:\s*<strong>(.*?)<\/strong>/i,
+    ]);
 
-    const languages = sanitizeValue(
-      matchOne(html, [
-        /(?:<[^>]*>)*\s*(?:Languages|Idiomas)\s*:\s*([\s\S]*?)(?=\s*(?:Genres|Géneros|Company|Compañía|Developer|Original Size|Tamaño original|Repack Size|Tamaño del repack|Download Mirrors|Filehoster|<))/i,
-      ])
-    );
+    // Idiomas
+    const languages = matchOne(html, [
+      /Languages:\s*([^<\n]+)/i,
+      /Idiomas:\s*([^<\n]+)/i,
+    ]);
 
-    const originalSize = sanitizeValue(
-      matchOne(html, [
-        /(?:<[^>]*>)*\s*(?:Original Size|Tamaño original)\s*:\s*([\s\S]*?)(?=\s*(?:Repack Size|Tamaño del repack|Download Mirrors|Filehoster|<))/i,
-      ])
-    );
+    // Tamaños
+    const originalSize = matchOne(html, [
+      /Original Size:\s*([^<\n]+)/i,
+      /Tamaño original:\s*([^<\n]+)/i,
+    ]);
 
-    const repackSize = sanitizeValue(
-      matchOne(html, [
-        /(?:<[^>]*>)*\s*(?:Repack Size|Tamaño del repack)\s*:\s*([\s\S]*?)(?=\s*(?:Download Mirrors|Filehoster|<))/i,
-      ])
-    );
+    const repackSize = matchOne(html, [
+      /Repack Size:\s*([^<\n]+)/i,
+      /Tamaño del repack:\s*([^<\n]+)/i,
+    ]);
     // Mirrors (decodificados)
     const mirrors = [
       ...new Set([
@@ -171,56 +149,46 @@ export async function GET(req) {
     // Imagen torrent-stats explícita
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Características del repack: entre el encabezado y el siguiente bloque/heading
-    const repackFeaturesRaw =
-      matchOne(html, [
-        /<b[^>]*>\s*Features Repack\s*<\/b>\s*([\s\S]*?)(?=\s*(?:<b|<strong|<h2|<h3|Download Mirrors|Selective Download))/i,
-        /<strong[^>]*>\s*Features Repack\s*<\/strong>\s*([\s\S]*?)(?=\s*(?:<b|<strong|<h2|<h3|Download Mirrors|Selective Download))/i,
-      ]) || null;
+    // Características del repack
+    const repackFeaturesRaw = matchOne(html, [
+      /<h3>\s*Repack Features\s*<\/h3>\s*<ul>([\s\S]*?)<\/ul>/i,
+    ]);
 
     let repackFeatures = null;
     if (repackFeaturesRaw) {
-      const withBullets = repackFeaturesRaw
-        .replace(/<li[^>]*>\s*/gi, '• ')
-        .replace(/<\/li>/gi, '\n');
-
-      repackFeatures = textOrNull(
-        decodeEntities(
-          withBullets
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/p>/gi, '\n')
-            .replace(/<[^>]+>/g, '')
-        )
-          .replace(/\n{3,}/g, '\n\n')
+      repackFeatures = decodeEntities(
+        repackFeaturesRaw
+          .replace(/<li[^>]*>\s*/gi, '• ')
+          .replace(/<\/li>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
           .trim()
       );
     }
 
-    // Información del juego (limpia encabezado)
+    // Información del juego
     const gameInfoRaw =
       matchOne(html, [/Game Description\s*:?([\s\S]*?)(?=\s*(?:<b|<strong|<h2|<h3|Download Mirrors))/i]) ||
       null;
 
-    const gameInfo = textOrNull(
-      gameInfoRaw
-        ? decodeEntities(
-            gameInfoRaw
-              .replace(/^(Game Description\s*:?\s*)/i, '')
-              .replace(/<br\s*\/?>/gi, '\n')
-              .replace(/<\/p>/gi, '\n')
-              .replace(/<[^>]+>/g, '')
-          ).trim()
-        : null
-    );
+    const gameInfo = gameInfoRaw
+      ? decodeEntities(
+          gameInfoRaw
+            .replace(/^(Game Description\s*:?\s*)/i, '')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .trim()
+        )
+      : null;
 
     return NextResponse.json({
       title: textOrNull(title),
       cover: textOrNull(cover),
-      genres,
-      company,
-      languages,
-      originalSize,
-      repackSize,
+      genres: textOrNull(genres),
+      company: textOrNull(company),
+      languages: textOrNull(languages),
+      originalSize: textOrNull(originalSize),
+      repackSize: textOrNull(repackSize),
       mirrors,
       screenshots,
       repackFeatures,
