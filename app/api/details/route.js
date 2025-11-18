@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// Helpers: safe selectors con regex y utilidades
+// Helpers
 function textOrNull(str) {
   const s = (str || '').trim();
   return s.length ? s : null;
@@ -26,19 +26,15 @@ function matchAll(html, pattern, groupIndex = 1, limit = 50) {
 }
 
 function normalizeLabelValue(line) {
-  // Convierte "Genres: Action, RPG" => {label: "Genres", value: "Action, RPG"}
   const m = line.match(/^\s*([A-Za-zÀ-ÿ0-9\s\/\-\(\)]+)\s*:\s*(.+)$/);
   if (!m) return null;
   return { label: m[1].trim(), value: m[2].trim() };
 }
 
 function extractSectionByHeading(html, headingText) {
-  // Busca un H tag con el texto y toma el contenido siguiente hasta el próximo heading
-  // Funciona con h2/h3/h4 y también con <b> como encabezado “de facto”
   const idx = html.toLowerCase().indexOf(headingText.toLowerCase());
   if (idx === -1) return null;
   const tail = html.slice(idx);
-  // Corta hasta el siguiente heading
   const cutIdx = tail.search(/<(h2|h3|h4|b)[^>]*>/i);
   if (cutIdx > 0) {
     return textOrNull(tail.slice(0, cutIdx));
@@ -57,6 +53,17 @@ function cleanHtmlToText(html) {
   );
 }
 
+function decodeEntities(str) {
+  if (!str) return null;
+  return str
+    .replace(/&#(\d+);/g, (m, code) => String.fromCharCode(code))
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -67,7 +74,6 @@ export async function GET(req) {
 
     const res = await fetch(postUrl, {
       headers: {
-        // Evitar bloqueos básicos
         'User-Agent':
           'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -82,27 +88,30 @@ export async function GET(req) {
     const html = await res.text();
 
     // Título
-    const title =
+    let title =
       matchOne(html, [
         /<h1[^>]*class="post-title"[^>]*>(.*?)<\/h1>/is,
         /<h1[^>]*>(.*?)<\/h1>/is,
         /<title[^>]*>(.*?)<\/title>/is,
       ]) || matchOne(html, [/itemprop="name"[^>]*content="(.*?)"/is]);
 
-    // Carátula (portada principal)
+    if (title && title.includes('FitGirl Repacks')) {
+      title = null; // descartar título genérico
+    }
+
+    // Carátula
     const cover =
       matchOne(html, [
         /<img[^>]*class="cover"[^>]*src="(.*?)"/is,
         /<img[^>]*itemprop="image"[^>]*src="(.*?)"/is,
-        /<a[^>]*class="fancybox"[^>]*href="(.*?)"/is, // a veces la cover está en el href de una fancybox
+        /<a[^>]*class="fancybox"[^>]*href="(.*?)"/is,
       ]) ||
       matchOne(html, [
         /<meta[^>]*property="og:image"[^>]*content="(.*?)"/is,
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-    // Géneros, compañía, idiomas, tamaños
-    // Capturamos líneas tipo "Genres: ..." "Company: ..." etc. y otras variantes en español
+    // Bloque de info
     const infoBlockText = cleanHtmlToText(
       matchOne(html, [/class="entry-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
         matchOne(html, [/class="post-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
@@ -119,62 +128,52 @@ export async function GET(req) {
       kv[key] = pair.value;
     }
 
-    const genres =
-      kv['genres'] || kv['géneros'] || matchOne(html, [/Genres:\s*(.*?)<\/?/is]) || null;
-    const company =
-      kv['company'] || kv['compañía'] || kv['developer'] || matchOne(html, [/Developer:\s*(.*?)<\/?/is]) || null;
-    const languages =
-      kv['languages'] || kv['idiomas'] || matchOne(html, [/Languages:\s*(.*?)<\/?/is]) || null;
+    const genres = kv['genres'] || kv['géneros'] || null;
+    const company = kv['company'] || kv['compañía'] || kv['developer'] || null;
+    const languages = kv['languages'] || kv['idiomas'] || null;
+    const originalSize = kv['original size'] || kv['tamaño original'] || null;
+    const repackSize = kv['repack size'] || kv['tamaño del repack'] || null;
 
-    const originalSize =
-      kv['original size'] ||
-      kv['tamaño original'] ||
-      matchOne(html, [/Original(?:\s+Size)?:\s*([0-9.,]+\s*(?:GB|MB))/is]) ||
-      null;
-
-    const repackSize =
-      kv['repack size'] ||
-      kv['tamaño del repack'] ||
-      matchOne(html, [/Repack(?:\s+Size)?:\s*([0-9.,]+\s*(?:GB|MB))/is]) ||
-      null;
-
-    // Download mirrors: puede estar en listas o enlaces agrupados
+    // Mirrors
     const mirrors = [
       ...new Set([
         ...matchAll(html, /<a[^>]*href="(magnet:\?xt=urn:[^"]+)"[^>]*>/i),
         ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>(?:Download|Mirror|CS.RIN|Torrent)/i),
         ...matchAll(html, /href="(https?:\/\/csrinru\.xyz[^"]+)"/i),
       ]),
-    ];
+    ].map(decodeEntities);
 
-    // Magnet directo (si existe)
     const csrinLink =
       matchOne(html, [/href="(magnet:\?xt=urn:[^"]+)"/i]) ||
       mirrors.find((m) => m.startsWith('magnet:')) ||
       null;
 
-    // Screenshots: tomamos hasta 8 imágenes que parezcan capturas
-    const screenshots = [
+    // Screenshots (excluyendo torrent-stats)
+    const allImages = [
       ...new Set([
         ...matchAll(html, /<img[^>]*src="(https?:\/\/[^"]+)"[^>]*>/i),
         ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+\.(?:jpg|png))"[^>]*>/i),
       ]),
-    ]
+    ];
+
+    const screenshots = allImages
+      .filter((url) => !/torrent-stats\.info/i.test(url))
       .filter((url) => /(screens?|ss|shot|gallery|cdn|images)/i.test(url) || /\.(jpg|png)$/i.test(url))
       .slice(0, 8);
+
+    // Imagen torrent-stats explícita
+    const torrentStatsImage = matchOne(html, [/https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png/]);
 
     // Secciones plegables
     const repackFeaturesRaw =
       extractSectionByHeading(html, 'Features Repack') ||
       extractSectionByHeading(html, 'Características del repack') ||
-      matchOne(html, [/Features(?:\s*of\s*the\s*Repack)?[\s\S]{0,40}<\/(?:h2|h3|b)>([\s\S]*?)<(?:h2|h3|b)/is]) ||
       null;
 
     const gameInfoRaw =
       extractSectionByHeading(html, 'Game Description') ||
       extractSectionByHeading(html, 'Game Info') ||
       extractSectionByHeading(html, 'Información del juego') ||
-      matchOne(html, [/Description[\s\S]{0,40}<\/(?:h2|h3|b)>([\s\S]*?)<(?:h2|h3|b)/is]) ||
       null;
 
     const repackFeatures = cleanHtmlToText(repackFeaturesRaw);
@@ -193,6 +192,7 @@ export async function GET(req) {
       repackFeatures,
       gameInfo,
       csrinLink,
+      torrentStatsImage,
     });
   } catch (err) {
     return NextResponse.json({ error: err?.message || 'Unknown error' }, { status: 500 });
