@@ -177,25 +177,24 @@ export async function GET(req) {
     // Torrent-stats
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Características del repack
-    const repackFeaturesRaw = matchOne(html, [
-      /<h3>\s*Repack Features\s*<\/h3>\s*<ul>([\s\S]*?)<\/ul>/i,
-    ]);
+    // ── Características del repack (con saltos de línea correctos)
+const repackFeaturesRaw = matchOne(html, [
+  /<h3[^>]*>\s*Repack Features\s*<\/h3>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i
+]);
 
-    let repackFeatures = null;
-    if (repackFeaturesRaw) {
-      repackFeatures = decodeEntities(
-        repackFeaturesRaw
-          .replace(/<li[^>]*>\s*/gi, '\n• ') // salto de línea antes de cada bullet
-          .replace(/<\/li>/gi, '')
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/<\/p>/gi, '\n')
-          .replace(/<[^>]+>/g, '')
-          .replace(/\n{3,}/g, '\n\n')
-          .replace(/^\s*\n+/, '')
-          .trim()
-      );
-    }
+const repackFeatures = repackFeaturesRaw
+  ? decodeEntities(
+      repackFeaturesRaw
+        .replace(/<\/?li[^>]*>/gi, '')           // quita las etiquetas <li>
+        .replace(/<\/?ul[^>]*>/gi, '')           // por si acaso
+        .replace(/<br\s*\/?>/gi, '\n')           // respeta <br> si los hay
+        .replace(/<[^>]+>/g, '')                 // quita cualquier otro HTML
+        .replace(/^\s*[\-\•\*]\s*/gim, '• ')     // normaliza bullets a • 
+        .replace(/\s*[\-\•\*]\s*/g, '\n• ')      // asegura salto de línea antes de cada bullet
+        .replace(/\n{3,}/g, '\n\n')              // máximo 2 saltos seguidos
+        .trim()
+    )
+  : null;
 
     // Información del juego
     const gameInfoRaw =
