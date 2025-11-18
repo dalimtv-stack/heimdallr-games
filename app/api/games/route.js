@@ -30,7 +30,6 @@ export async function GET(request) {
 
     $('article.post').each((_, el) => {
       const article = $(el);
-
       const link = article.find('h1.entry-title a, h2.entry-title a').first();
       if (!link.length) return;
 
@@ -39,8 +38,6 @@ export async function GET(request) {
 
       const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
       const postUrl = link.attr('href') || '';
-
-      // ID estable basado en hash del postUrl
       const id = postUrl
         ? crypto.createHash('md5').update(postUrl).digest('hex')
         : Date.now().toString();
@@ -51,7 +48,6 @@ export async function GET(request) {
         cover = img.attr('src') || img.attr('data-src') || img.attr('data-lazy-src') || '';
         if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
       }
-
       if (!cover) {
         cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
       }
@@ -59,19 +55,14 @@ export async function GET(request) {
       games.push({ id, title, cover, postUrl });
     });
 
-    // Detección de paginación real
     let hasMore = false;
     if (tab === 'todos_az') {
-      // En el listado A-Z, el plugin usa enlaces con lcp_page
       hasMore = $('a[href*="lcp_page0"]').length > 0;
     } else {
       hasMore = $('.pagination .next').length > 0;
     }
 
-    return NextResponse.json({
-      games,
-      hasMore
-    });
+    return NextResponse.json({ games, hasMore });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ games: [], hasMore: false });
