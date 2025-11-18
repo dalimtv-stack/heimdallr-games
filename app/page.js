@@ -26,8 +26,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [tab, setTab] = useState('novedades');
-  const [expandedId, setExpandedId] = useState(null);
-  const [expandedDetails, setExpandedDetails] = useState({});
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [selectedDetails, setSelectedDetails] = useState(null);
+
   const fetchGames = async (reset = false) => {
     setLoading(true);
     const p = reset ? 1 : page;
@@ -56,35 +57,29 @@ export default function Home() {
 
   useEffect(() => {
     setPage(1);
-    setExpandedId(null);
-    setExpandedDetails({});
+    setSelectedGame(null);
+    setSelectedDetails(null);
     fetchGames(true);
   }, [tab]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    setExpandedId(null);
+    setSelectedGame(null);
     fetchGames(true);
   };
 
   const loadMore = () => fetchGames();
 
-  const toggleExpand = async (game) => {
-    if (expandedId === game.id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(game.id);
-    if (expandedDetails[game.id]) return;
-
-    setExpandedDetails(prev => ({ ...prev, [game.id]: { loading: true } }));
+  const handleSelect = async (game) => {
+    setSelectedGame(game);
+    setSelectedDetails({ loading: true });
     try {
       const res = await fetch(`/api/details?url=${encodeURIComponent(game.postUrl)}`);
       const data = await res.json();
-      setExpandedDetails(prev => ({ ...prev, [game.id]: data }));
+      setSelectedDetails(data);
     } catch (err) {
-      setExpandedDetails(prev => ({ ...prev, [game.id]: { error: true } }));
+      setSelectedDetails({ error: true });
     }
   };
 
@@ -92,9 +87,11 @@ export default function Home() {
     setSearch('');
     setTab('novedades');
     setPage(1);
-    setExpandedId(null);
+    setSelectedGame(null);
+    setSelectedDetails(null);
     fetchGames(true);
   };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -140,7 +137,7 @@ export default function Home() {
           {games.map((game) => (
             <div key={game.id} className="space-y-4">
               <div
-                onClick={() => toggleExpand(game)}
+                onClick={() => handleSelect(game)}
                 className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
               >
                 <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
@@ -159,62 +156,6 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-
-              {expandedId === game.id && (
-                <div className="bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-                  {expandedDetails[game.id]?.loading && (
-                    <p className="text-center text-yellow-400">Cargando detalles...</p>
-                  )}
-                  {expandedDetails[game.id]?.error && (
-                    <p className="text-center text-red-400">Error al cargar detalles</p>
-                  )}
-                  {expandedDetails[game.id] &&
-                    !expandedDetails[game.id].loading &&
-                    !expandedDetails[game.id].error && (
-                      <div className="space-y-4">
-                        <h3 className="text-2xl font-bold text-yellow-400 mb-4">
-                          {expandedDetails[game.id].title}
-                        </h3>
-                        <Image
-                          src={expandedDetails[game.id].cover}
-                          alt={expandedDetails[game.id].title}
-                          width={600}
-                          height={900}
-                          className="w-full rounded-lg mb-4"
-                          unoptimized
-                        />
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                          {expandedDetails[game.id].screenshots?.slice(0, 4).map((src, i) => (
-                            <Image
-                              key={i}
-                              src={src}
-                              alt=""
-                              width={300}
-                              height={169}
-                              className="rounded-lg"
-                              unoptimized
-                            />
-                          ))}
-                        </div>
-                        <div className="text-sm space-y-2">
-                          <p><strong>Géneros:</strong> {expandedDetails[game.id].genres || 'N/A'}</p>
-                          <p><strong>Compañía:</strong> {expandedDetails[game.id].company || 'N/A'}</p>
-                          <p><strong>Repack:</strong> {expandedDetails[game.id].repackSize || 'N/A'}</p>
-                          <p><strong>Original:</strong> {expandedDetails[game.id].originalSize || 'N/A'}</p>
-                          <p><strong>Instalación:</strong> {expandedDetails[game.id].installTime || 'N/A'}</p>
-                        </div>
-                        {expandedDetails[game.id].csrinLink && (
-                          <button
-                            onClick={() => sendMagnetToQB(expandedDetails[game.id].csrinLink)}
-                            className="mt-6 block w-full text-center py-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold"
-                          >
-                            Instalar en qBittorrent
-                          </button>
-                        )}
-                      </div>
-                    )}
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -232,6 +173,60 @@ export default function Home() {
             >
               {loading ? 'Cargando...' : 'Cargar más'}
             </button>
+          </div>
+        )}
+
+        {selectedGame && (
+          <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
+            {selectedDetails?.loading && (
+              <p className="text-center text-yellow-400">Cargando detalles...</p>
+            )}
+            {selectedDetails?.error && (
+              <p className="text-center text-red-400">Error al cargar detalles</p>
+            )}
+            {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
+              <div className="space-y-4">
+                <h3 className="text-2xl font-bold text-yellow-400 mb-4">
+                  {selectedDetails.title}
+                </h3>
+                <Image
+                  src={selectedDetails.cover}
+                  alt={selectedDetails.title}
+                  width={600}
+                  height={900}
+                  className="w-full rounded-lg mb-4"
+                  unoptimized
+                />
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {selectedDetails.screenshots?.slice(0, 4).map((src, i) => (
+                    <Image
+                      key={i}
+                      src={src}
+                      alt=""
+                      width={300}
+                      height={169}
+                      className="rounded-lg"
+                      unoptimized
+                    />
+                  ))}
+                </div>
+                <div className="text-sm space-y-2">
+                  <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
+                  <p><strong>Compañía:</strong> {selectedDetails.company || 'N/A'}</p>
+                  <p><strong>Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
+                  <p><strong>Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
+                  <p><strong>Instalación:</strong> {selectedDetails.installTime || 'N/A'}</p>
+                </div>
+                {selectedDetails.csrinLink && (
+                  <button
+                    onClick={() => sendMagnetToQB(selectedDetails.csrinLink)}
+                    className="mt-6 block w-full text-center py-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold"
+                  >
+                    Instalar en qBittorrent
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
