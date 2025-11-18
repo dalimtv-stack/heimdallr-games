@@ -100,14 +100,22 @@ export async function GET(req) {
         /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
       ]);
 
-    // Bloque de info
-    const infoBlockText =
+    // Bloque de info normalizado
+    const infoBlockHtml =
       matchOne(html, [/class="entry-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
       matchOne(html, [/class="post-content"[^>]*>([\s\S]*?)<\/div>/is]) ||
       matchOne(html, [/class="content"[^>]*>([\s\S]*?)<\/div>/is]) ||
       html;
 
-    const lines = decodeEntities(infoBlockText)
+    const infoText = decodeEntities(
+      (infoBlockHtml || '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<li[^>]*>/gi, '\n• ')
+        .replace(/<[^>]+>/g, '')
+    );
+
+    const lines = infoText
       .split(/\n+/)
       .map((l) => l.trim())
       .filter(Boolean);
@@ -120,12 +128,21 @@ export async function GET(req) {
       kv[key] = pair.value;
     }
 
-    const genres = kv['genres'] || kv['géneros'] || null;
-    const company = kv['company'] || kv['compañía'] || kv['developer'] || null;
-    const languages = kv['languages'] || kv['idiomas'] || null;
-    const originalSize = kv['original size'] || kv['tamaño original'] || null;
-    const repackSize = kv['repack size'] || kv['tamaño del repack'] || null;
+    const genres =
+      kv['genres'] || kv['genre'] || kv['géneros'] || kv['género'] || null;
 
+    const company =
+      kv['company'] || kv['compañía'] || kv['developer'] || kv['publisher'] ||
+      kv['desarrollador'] || kv['editor'] || null;
+
+    const languages =
+      kv['languages'] || kv['idiomas'] || kv['language'] || kv['idioma'] || null;
+
+    const originalSize =
+      kv['original size'] || kv['tamaño original'] || null;
+
+    const repackSize =
+      kv['repack size'] || kv['tamaño del repack'] || null;
     // Mirrors (decodificados)
     const mirrors = [
       ...new Set([
@@ -156,22 +173,38 @@ export async function GET(req) {
     // Imagen torrent-stats explícita
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Secciones
-    const repackFeaturesRaw =
+    // Características del repack
+    const repackFeaturesBlockHtml =
+      matchOne(html, [
+        /(?:<b[^>]*>|<strong[^>]*>)\s*(Features Repack|Características del repack)\s*(?:<\/b>|<\/strong>)([\s\S]*?)(?=<(?:h2|h3|b|strong)[^>]*>)/is,
+      ]) ||
+      matchOne(html, [
+        /(?:Features Repack|Características del repack)[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/is,
+      ]) ||
+      matchOne(html, [
+        /(?:Features Repack|Características del repack)[\s\S]*?(<p[^>]*>[\s\S]*?<\/p>)/is,
+      ]) ||
       extractSectionByHeading(html, 'Features Repack') ||
       extractSectionByHeading(html, 'Características del repack') ||
       null;
 
-    const repackFeatures = repackFeaturesRaw
-      ? decodeEntities(
-          repackFeaturesRaw
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/p>/gi, '\n')
-            .replace(/<[^>]+>/g, '')
-            .trim()
-        )
-      : null;
+    let repackFeatures = null;
+    if (repackFeaturesBlockHtml) {
+      const withBullets = repackFeaturesBlockHtml
+        .replace(/<li[^>]*>\s*/gi, '• ')
+        .replace(/<\/li>/gi, '\n');
 
+      repackFeatures = decodeEntities(
+        withBullets
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim()
+      );
+    }
+
+    // Información del juego
     const gameInfoRaw =
       extractSectionByHeading(html, 'Game Description') ||
       extractSectionByHeading(html, 'Game Info') ||
