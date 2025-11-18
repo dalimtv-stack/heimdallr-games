@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// ── Helpers mejorados ─────────────────────────────────────
+// ── Helpers ─────────────────────────────────────
 function textOrNull(str) {
   const s = (str || '').trim();
   return s && s !== 'N/A' && s !== '' ? s : null;
@@ -30,7 +30,7 @@ function decodeEntities(str) {
   const entities = {
     '&amp;': '&',
     '&quot;': '"',
-    '&#039;': "'',
+    '&#039;': "'",
     '&lt;': '<',
     '&gt;': '>',
     '&nbsp;': ' ',
@@ -42,11 +42,11 @@ function decodeEntities(str) {
     '&#038;': '&',
   };
   return str
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(code))
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
     .replace(/&[a-z]+;/gi, m => entities[m] || m);
 }
 
-// ── Ruta GET ──────────────────────────────────────────────
+// ── Ruta GET ────────────────────────────────────
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -71,14 +71,14 @@ export async function GET(req) {
     const rawHtml = await res.text();
     const html = decodeEntities(rawHtml);
 
-    // ── Título ───────────────────────────────────────────
+    // Título
     let title = matchOne(html, [
       /<h1[^>]+class=["']post-title[^>]+>([\s\S]*?)<\/h1>/i,
       /<h1[^>]*>([\s\S]*?)<\/h1>/i,
       /<title>([\s\S]*?)<\/title>/i,
     ])?.replace(/\s*[-–—]\s*FitGirl Repacks?.*$/i, '').trim();
 
-    // ── Carátula ───────────────────────────────────────────
+    // Carátula
     const cover = matchOne(html, [
       /<img[^>]+class=["']cover[^>]+src=["']([^"']+)/i,
       /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i,
@@ -86,7 +86,7 @@ export async function GET(req) {
       /<a[^>]+class=["']fancybox[^>]+href=["']([^"']+)/i,
     ]);
 
-    // ── Géneros ───────────────────────────────────────────
+    // Géneros
     const genresBlock = matchOne(html, [
       /Genres\/Tags:[\s\S]*?(<br|<p|<\/p|<ul|<\/div)/i,
       /Genres\/Tags:([^<]+(<br|<\/p))/i,
@@ -103,7 +103,7 @@ export async function GET(req) {
           .join(', ')
       : null;
 
-    // ── Compañía ───────────────────────────────────────────
+    // Compañía
     const company = matchOne(html, [
       /Companies:[\s\S]*?<strong>([\s\S]*?)<\/strong>/i,
       /Company:[\s\S]*?<strong>([\s\S]*?)<\/strong>/i,
@@ -113,13 +113,13 @@ export async function GET(req) {
       /Company:\s*([^<\n\r]+)/i,
     ])?.replace(/<[^>]+>/g, '').trim() || null;
 
-    // ── Idiomas ───────────────────────────────────────────
+    // Idiomas
     const languages = matchOne(html, [
       /Languages?:\s*([^<\n\r]+)/i,
       /Idiomas?:\s*([^<\n\r]+)/i,
     ])?.trim() || null;
 
-    // ── Tamaños ───────────────────────────────────────────
+    // Tamaños
     const originalSize = matchOne(html, [
       /Original\s+Size[:\s]+([\d.,\s]+(?:GB|MB))/i,
       /Tamaño original[:\s]+([\d.,\s]+(?:GB|MB))/i,
@@ -130,7 +130,7 @@ export async function GET(req) {
       /Tamaño del repack[:\s]+((?:from\s*)?[\d.,\s]+(?:GB|MB)[^<\n]*)/i,
     ])?.trim() || null;
 
-    // ── Mirrors ───────────────────────────────────────────
+    // Mirrors
     const magnets = matchAll(html, /href=["'](magnet:\?xt=urn:btih:[^"']+)["']/i);
     const httpMirrors = matchAll(html, /<a[^>]+href=["'](https?:\/\/[^"']+(?:1337x|rutracker|cs\.rin\.ru|fitgirl-repacks\.site)[^"']*)["'][^>]*>(?:Download|Mirror|Torrent|CS\.RIN)/i);
     const csrinLinks = matchAll(html, /href=["'](https?:\/\/csrin\.ru[^"']+)["']/i);
@@ -141,7 +141,7 @@ export async function GET(req) {
 
     const csrinLink = magnets[0] || mirrors.find(m => m.startsWith('magnet:')) || null;
 
-    // ── Screenshots ───────────────────────────────────────
+    // Screenshots
     const allImgs = [
       ...matchAll(html, /<img[^>]+src=["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i),
       ...matchAll(html, /<a[^>]+class=["']fancybox[^>]+href=["']([^"']+\.(?:jpg|jpeg|png))["']/i),
@@ -152,10 +152,10 @@ export async function GET(req) {
       .filter(url => !/torrent-stats\.info|logo|banner|avatar/i.test(url))
       .slice(0, 8);
 
-    // ── Torrent-stats ─────────────────────────────────────
+    // Torrent-stats
     const torrentStatsImage = matchOne(html, /(https?:\/\/torrent-stats\.info\/[^\s"']+\.png)/i);
 
-    // ── Repack Features ───────────────────────────────────
+    // Repack Features
     const repackFeaturesRaw = matchOne(html, /<h3[^>]*>Repack Features<\/h3>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i);
     const repackFeatures = repackFeaturesRaw
       ? decodeEntities(
@@ -168,7 +168,7 @@ export async function GET(req) {
         )
       : null;
 
-    // ── Game Description ──────────────────────────────────
+    // Game Description
     const gameInfoRaw = matchOne(html, /<strong>Game Description<\/strong>[\s\S]*?(?=<h3|<div class=["']download|<p><strong>)/i)
                      || matchOne(html, /<h2[^>]*>Description<\/h2>[\s\S]*?(?=<h3|<div)/i);
 
@@ -182,7 +182,6 @@ export async function GET(req) {
         )
       : null;
 
-    // ── Respuesta final (¡paréntesis bien cerrados!) ──────
     return NextResponse.json({
       title: textOrNull(title),
       cover: textOrNull(cover),
@@ -197,13 +196,10 @@ export async function GET(req) {
       torrentStatsImage: textOrNull(torrentStatsImage),
       repackFeatures,
       gameInfo,
-    }, { status: 200 });
+    });
 
   } catch (err) {
     console.error('FitGirl scraper error:', err);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
