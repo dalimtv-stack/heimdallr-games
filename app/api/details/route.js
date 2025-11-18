@@ -143,7 +143,7 @@ export async function GET(req) {
 		// ── Repack Size (captura "from X GB", rangos, [Selective Download], etc.)
 		const repackSize = textOrNull(
 		  matchOne(html, [
-		    /Repack\s+Size:\s*<strong>((?:from )?[\d.,\s]+ ?(?:GB|MB)(?:[^<]*))<\/strong>/i,
+		    /Repack\s+Size:\s*<strong>((?:from )?[\d.,\s]+ ?(?:GB|MB)<\/strong>/i,
 		    /Repack\s+Size:\s*((?:from )?[\d.,\s]+ ?(?:GB|MB)[^<\r\n]*)/i
 		  ])
 		);
