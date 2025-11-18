@@ -151,6 +151,7 @@ export async function GET(req) {
 	  // ── Tamaño después de instalado (justo después de Repack Size)
 		const installedSize = textOrNull(
 		  matchOne(html, [
+			/•\s*HDD space after installation[:\s]*([^\n<]+)/i,
 		    /HDD space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
 		    /Space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
 		    /Disk space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
