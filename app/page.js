@@ -255,8 +255,8 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Capturas */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                {/* Capturas más compactas */}
+                <div className="grid grid-cols-2 gap-2">
                   {selectedDetails.screenshots?.slice(0, 4).map((src, i) => (
                     <Image
                       key={i}
