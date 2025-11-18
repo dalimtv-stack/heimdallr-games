@@ -230,6 +230,7 @@ export default function Home() {
                   <p><strong>Idiomas:</strong> {selectedDetails.languages || 'N/A'}</p>
                   <p><strong>Tamaño Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
                   <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
+                  <p><strong>Tamaño de la instalación:</strong> {selectedDetails.installedSize || 'N/A'}</p>
 
                   {/* Mirrors como lista */}
                   <div className="space-y-2">
