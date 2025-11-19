@@ -9,7 +9,7 @@ const filterAdultGames = (gamesList) => {
     const lowerTitle = game.title.toLowerCase();
     const adultKeywords = [
       'adult', 'hentai', 'nsfw', 'eroge', 'nude', 'sex', 'porn', 'koikatsu', 'nympho', 'fuck', 'cum',
-      'lust ', 'genesis order', 'nymphomaniac'
+      'lust ', 'nymphomaniac'
     ];
     return !adultKeywords.some(keyword => lowerTitle.includes(keyword));
   });
