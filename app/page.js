@@ -319,7 +319,7 @@ export default function Home() {
                     <span>{showInfo ? '▲' : '▼'}</span>
                   </button>
                   {showInfo && (
-                    <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg">{selectedDetails.gameInfo || 'N/A'}</p>
+                    <p className="mt-2 text-sm bg-gray-900 p-6 rounded-lg whitespace-pre-line leading-relaxed">{selectedDetails.gameInfo || 'N/A'}</p>
                   )}
                 </div>
 
