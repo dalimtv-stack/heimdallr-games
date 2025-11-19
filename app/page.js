@@ -259,37 +259,40 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Capturas reales – SIN favicon, SIN carátula, SIN basura */}
+                {/* Capturas reales + Trailer (solo del bloque oficial) */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
-                    <h3 className="text-2xl font-bold text-yellow-400 mb-4 text-center">Capturas del juego</h3>
+                    <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
+                      Capturas del juego
+                    </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {selectedDetails.screenshots
-                        .filter(src => {
-                          const lower = src.toLowerCase();
-                          return (
-                            src !== (selectedDetails.cover || selectedGame.cover) &&
-                            !lower.includes('icon-') &&
-                            !lower.includes('favicon') &&
-                            !lower.includes('cropped-icon') &&
-                            !lower.includes('192x192') &&
-                            !lower.includes('fitgirl-repacks.site/wp-content/uploads/2016/08') &&
-                            lower.includes('out/') // solo imágenes de imageban.ru que son las reales
-                          );
-                        })
-                        .slice(0, 8)
-                        .map((src, i) => (
-                          <Image
-                            key={i}
-                            src={src}
-                            alt={`Screenshot ${i + 1}`}
-                            width={400}
-                            height={225}
-                            className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300"
-                            unoptimized
-                          />
-                        ))}
+                      {selectedDetails.screenshots.slice(0, 8).map((src, i) => (
+                        <Image
+                          key={i}
+                          src={src}
+                          alt={`Captura ${i + 1}`}
+                          width={400}
+                          height={225}
+                          className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300 object-cover"
+                          unoptimized
+                        />
+                      ))}
                     </div>
+                
+                    {/* Trailer si existe */}
+                    {selectedDetails.trailerVideo && (
+                      <div className="mt-8 max-w-4xl mx-auto">
+                        <video
+                          controls
+                          preload="metadata"
+                          className="w-full rounded-xl shadow-2xl border-4 border-yellow-500/30"
+                          poster={selectedDetails.screenshots[0]} // opcional: usa primera captura como poster
+                        >
+                          <source src={selectedDetails.trailerVideo} type="video/webm" />
+                          Tu navegador no soporta video.
+                        </video>
+                      </div>
+                    )}
                   </div>
                 )}
 
