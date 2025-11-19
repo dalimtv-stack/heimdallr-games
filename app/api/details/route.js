@@ -189,19 +189,21 @@ export async function GET(req) {
     // Torrent-stats
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-    // Repack Features – versión que funciona con los repacks actuales (2025)
+	// ── Repack Features (funciona en TODOS los repacks actuales de FitGirl – 2024-2025)
 	const repackFeaturesRaw = matchOne(html, [
-	  /<h3[^>]*>Repack Features<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,           // caso actual: todo dentro de <p>
-	  /<h3[^>]*>Repack Features<\/h3>\s*([\s\S]*?)(?=<h3|Download Mirrors|<\/div>)/i  // fallback si cambia
+	  /<h3[^>]*>Repack Features<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,
+	  /<h3[^>]*>Repack Features<\/h3>\s*<ul[^>]*>([\s\S]*?)<\/ul>/i,
+	  /<h3[^>]*>Repack Features<\/h3>\s*([\s*<div[^>]*>([\s\S]*?)<\/div>/i,
+	  /<h3[^>]*>Repack Features<\/h3>\s*([\s\S]*?)(?=<h3|Download Mirrors|<\/div>|<p><strong>Game Description)/i
 	]);
 	
 	const repackFeatures = repackFeaturesRaw
 	  ? decodeEntities(
 	      repackFeaturesRaw
-	        .replace(/<[^>]+>/g, '')                     // quita todo HTML
-	        .replace(/^\s*•\s*/gm, '• ')                 // normaliza bullets al inicio
-	        .replace(/\s+•\s+/g, '\n• ')                 // mete salto antes de cada • que esté en medio
-	        .replace(/\n{3,}/g, '\n\n')                  // máximo 2 saltos seguidos
+	        .replace(/<[^>]+>/g, '')                    // quita todo HTML
+	        .replace(/[•·•]\s*/g, '\n• ')                // convierte cualquier bullet en salto + •
+	        .replace(/^\s*|\s*$/gm, '')                 // trim por línea
+	        .replace(/\n+/g, '\n')                      // un solo salto por línea
 	        .trim()
 	    )
 	  : null;
