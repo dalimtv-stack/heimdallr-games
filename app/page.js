@@ -394,33 +394,69 @@ export default function Home() {
                   </>
                 )}
 
-                {/* BOTONES FINALES – Responsive y con navegación */}
-                <div className="mt-8 flex flex-wrap gap-3 justify-start items-center">
+                {/* NAVEGACIÓN AVANZADA – Atrás / Siguiente con carga automática */}
+                <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
+                  {/* Botón ATRÁS */}
                   <button
-                    onClick={() => setViewMode('list')}
-                    className="flex items-center gap-2 px-5 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition whitespace-nowrap"
-                  >
-                    <span className="text-xl">←</span>
-                    <span className="hidden sm:inline">Volver al listado</span>
-                    <span className="sm:hidden">Volver</span>
-                  </button>
-
-                  {nextGame && (
-                    <button
-                      onClick={() => {
-                        handleSelect(nextGame, games);
+                    onClick={async () => {
+                      const currentIndex = games.findIndex(g => g.id === selectedGame.id);
+                      if (currentIndex > 0) {
+                        // Hay juego anterior → cargar
+                        const prevGame = games[currentIndex - 1];
+                        handleSelect(prevGame, games);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                      className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition whitespace-nowrap"
-                    >
-                      <span className="hidden sm:inline">Siguiente juego</span>
-                      <span className="sm:hidden">Siguiente</span>
-                      <span className="text-xl">→</span>
-                    </button>
-                  )}
-
-                  {!nextGame && selectedGame && (
-                    <div className="text-gray-500 text-sm italic">
+                      } else {
+                        // Es el primero → volver al listado
+                        setViewMode('list');
+                      }
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-500 transition whitespace-nowrap"
+                  >
+                    <span className="text-xl">Left Arrow</span>
+                    <span className="hidden sm:inline">Atrás</span>
+                    <span className="sm:hidden">Atrás</span>
+                  </button>
+                
+                  {/* Botón SIGUIENTE – carga más si es necesario */}
+                  <button
+                    onClick={async () => {
+                      const currentIndex = games.findIndex(g => g.id === selectedGame.id);
+                      const nextInList = games[currentIndex + 1];
+                
+                      if (nextInList) {
+                        // Hay siguiente en la lista actual → cargar
+                        handleSelect(nextInList, games);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      } else if (hasMore && !loading) {
+                        // Es el último visible, pero hay más páginas → cargar más y luego ir al siguiente
+                        setLoading(true);
+                        await fetchGames(); // carga la siguiente página
+                        // Después de cargar, el nuevo "siguiente" ya estará en games
+                        const updatedIndex = games.findIndex(g => g.id === selectedGame.id);
+                        const newNext = games[updatedIndex + 1];
+                        if (newNext) {
+                          handleSelect(newNext, games);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                        setLoading(false);
+                      }
+                      // Si no hay más → no hace nada (se muestra el mensaje de "Último juego")
+                    }}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace"
+                  >
+                    <span className="hidden sm:inline">Siguiente</span>
+                    <span className="sm:hidden">Siguiente</span>
+                    <span className="text-xl">Right Arrow</span>
+                    {loading && <span className="ml-2 animate-pulse">Cargando...</span>}
+                  </button>
+                
+                  {/* Mensaje cuando es realmente el último */}
+                  {!games.find(g => g.id === selectedGame.id)?.id && <></>}
+                  {games.length > 0 && 
+                   games.indexOf(games.find(g => g.id === selectedGame.id)) === games.length - 1 && 
+                   !hasMore && (
+                    <div className="text-gray-500 text-sm italic ml-4">
                       Último juego de la lista
                     </div>
                   )}
