@@ -5,7 +5,7 @@ import Image from 'next/image';
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
 // ──────────────────────────────────────────────────────────────
-function MarkdownText({ text }: { text: string | null }) {
+function MarkdownText({ text }) {
   if (!text) return <p className="text-gray-500 italic">No hay descripción disponible.</p>;
 
   const parts = text.split(/(\*\*.*?\*\*)/g);
@@ -52,7 +52,10 @@ async function sendMagnetToQB(magnet: string) {
 }
 
 export default function Home() {
-  const [games, setGames] = useState<any[]>([]);
+  const [games, setGames] = useState([]);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [selectedDetails, setSelectedDetails] = useState(null);
+  const [nextGame, setNextGame] = useState(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
