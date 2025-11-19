@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
 // ──────────────────────────────────────────────────────────────
@@ -30,7 +29,6 @@ function MarkdownText({ text }) {
     </>
   );
 }
-
 // ──────────────────────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────────────────────
@@ -50,7 +48,6 @@ async function sendMagnetToQB(magnet) {
     alert('Error enviando magnet: ' + err.message);
   }
 }
-
 export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
@@ -64,7 +61,6 @@ export default function Home() {
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [nextGame, setNextGame] = useState(null); // ← nuevo estado para "Siguiente juego"
-
   const fetchGames = async (reset = false) => {
     setLoading(true);
     const p = reset ? 1 : page;
@@ -89,20 +85,18 @@ export default function Home() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     // FIX: al cambiar pestaña → limpia todo y muestra "Cargando juegos..."
-    setGames([]);                    // ← limpia la grid
-    setPage(1);                      // ← reinicia página
-    setHasMore(true);                // ← asume que puede haber más
-    setSelectedGame(null);           // ← cierra detalle si estaba abierto
+    setGames([]); // ← limpia la grid
+    setPage(1); // ← reinicia página
+    setHasMore(true); // ← asume que puede haber más
+    setSelectedGame(null); // ← cierra detalle si estaba abierto
     setSelectedDetails(null);
     setViewMode('list');
     setNextGame(null);
-    setLoading(true);                // ← IMPORTANTE: fuerza el mensaje "Cargando juegos..."
-    fetchGames(true);                // ← recarga desde página 1
+    setLoading(true); // ← IMPORTANTE: fuerza el mensaje "Cargando juegos..."
+    fetchGames(true); // ← recarga desde página 1
   }, [tab]);
-
   // Precarga automática cuando llegamos al último juego visible
   useEffect(() => {
     if (selectedGame && viewMode === 'detail' && games.length > 0) {
@@ -112,7 +106,6 @@ export default function Home() {
       }
     }
   }, [selectedGame, games.length, hasMore, loading, viewMode]);
-
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
@@ -122,9 +115,7 @@ export default function Home() {
     setNextGame(null);
     fetchGames(true);
   };
-
   const loadMore = () => fetchGames();
-
   const handleSelect = async (game, currentList = games) => {
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
@@ -140,7 +131,6 @@ export default function Home() {
       setSelectedDetails({ error: true });
     }
   };
-
   const resetToHome = () => {
     setSearch('');
     setTab('novedades');
@@ -151,7 +141,6 @@ export default function Home() {
     setNextGame(null);
     fetchGames(true);
   };
-
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -191,50 +180,91 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+        {/* ====================== LISTADO ====================== */}
         {viewMode === 'list' && (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
-              {games.map((game) => (
-                <div key={game.id} className="space-y-4">
-                  <div
-                    onClick={() => handleSelect(game, games)}
-                    className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
-                  >
-                    <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
-                      <Image
-                        src={game.cover}
-                        alt={game.title}
-                        width={300}
-                        height={450}
-                        className="w-full h-auto object-cover"
-                        unoptimized
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition">
-                        <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">
-                          {game.title}
-                        </p>
+            {/* MODO ESPECIAL: TODOS (A-Z) → solo texto bonito */}
+            {tab === 'todos_az' ? (
+              <div className="max-w-4xl mx-auto">
+                <div className="space-y-3">
+                  {games.map((game) => (
+                    <div
+                      key={game.id}
+                      onClick={() => handleSelect(game, games)}
+                      className="group cursor-pointer bg-gray-800/60 hover:bg-gray-700 rounded-xl p-6 transition-all duration-200 border border-gray-700 hover:border-yellow-500/60 shadow-lg hover:shadow-yellow-500/10"
+                    >
+                      <h3 className="text-2xl font-bold text-yellow-400 group-hover:text-yellow-300 transition">
+                        {game.title}
+                      </h3>
+                    </div>
+                  ))}
+                </div>
+
+                {loading && games.length === 0 && (
+                  <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
+                )}
+                {hasMore && games.length > 0 && (
+                  <div className="text-center mt-16">
+                    <button
+                      onClick={loadMore}
+                      disabled={loading}
+                      className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
+                    >
+                      {loading ? 'Cargando...' : 'Cargar más juegos'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* MODO NORMAL CON PORTADAS (100% igual que antes) */
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
+                  {games.map((game) => (
+                    <div key={game.id} className="space-y-4">
+                      <div
+                        onClick={() => handleSelect(game, games)}
+                        className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
+                      >
+                        <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
+                          <Image
+                            src={game.cover}
+                            alt={game.title}
+                            width={300}
+                            height={450}
+                            className="w-full h-auto object-cover"
+                            unoptimized
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition">
+                            <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">
+                              {game.title}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {loading && games.length === 0 && (
-              <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
-            )}
-            {hasMore && games.length > 0 && (
-              <div className="text-center mt-16">
-                <button
-                  onClick={loadMore}
-                  disabled={loading}
-                  className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
-                >
-                  {loading ? 'Cargando...' : 'Cargar más'}
-                </button>
-              </div>
+                {loading && games.length === 0 && (
+                  <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
+                )}
+                {hasMore && games.length > 0 && (
+                  <div className="text-center mt-16">
+                    <button
+                      onClick={loadMore}
+                      disabled={loading}
+                      className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
+                    >
+                      {loading ? 'Cargando...' : 'Cargar más'}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
+
+        {/* ====================== DETALLE DEL JUEGO (100% IGUAL) ====================== */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
             {/* Botón arriba */}
@@ -405,7 +435,6 @@ export default function Home() {
                     <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
-
                   {/* BOTÓN SIGUIENTE */}
                   <button
                     onClick={() => {
@@ -423,7 +452,6 @@ export default function Home() {
                     <span className="text-xl">→</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
-
                   {/* Mensaje solo cuando es realmente el último */}
                   {games.length > 0 &&
                     games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
