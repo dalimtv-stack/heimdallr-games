@@ -34,14 +34,12 @@ function MarkdownText({ text }) {
 // ──────────────────────────────────────────────────────────────
 async function sendMagnetToQB(magnet) {
   try {
-    // abrir directamente el magnet en el cliente por protocolo
     window.location.href = magnet;
     alert('Magnet abierto en qBittorrent');
   } catch (err) {
     alert('Error abriendo magnet: ' + err.message);
   }
 }
-
 
 export default function Home() {
   const [games, setGames] = useState([]);
@@ -56,8 +54,8 @@ export default function Home() {
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [nextGame, setNextGame] = useState(null);
+  const [modalImage, setModalImage] = useState(null); // NUEVO: para modal de capturas
 
-  // NUEVO: Carga la portada real desde el post del juego (solo en buscador)
   const fetchRealCover = async (game) => {
     if (tab !== 'buscador' || game.cover) return;
 
@@ -104,10 +102,9 @@ export default function Home() {
       }
       setHasMore(data.hasMore);
 
-      // En el buscador: cargar portadas reales una vez cargada la lista
       if (tab === 'buscador' && reset) {
         newGames.forEach((game, index) => {
-          setTimeout(() => fetchRealCover(game), index * 350); // suave y sin saturar
+          setTimeout(() => fetchRealCover(game), index * 350);
         });
       }
 
@@ -182,26 +179,18 @@ export default function Home() {
 
         {/* PESTAÑAS */}
         <div className="mb-8 flex justify-center gap-2 flex-wrap">
-          {[
-            { key: 'novedades', label: 'Novedades' },
-            { key: 'populares_mes', label: 'Populares (mes)' },
-            { key: 'populares_ano', label: 'Populares (año)' },
-            { key: 'todos_az', label: 'Todos (A-Z)' },
-            { key: 'buscador', label: 'Buscador' },
-          ].map(({ key, label }) => (
+          {[{ key: 'novedades', label: 'Novedades' },{ key: 'populares_mes', label: 'Populares (mes)' },{ key: 'populares_ano', label: 'Populares (año)' },{ key: 'todos_az', label: 'Todos (A-Z)' },{ key: 'buscador', label: 'Buscador' }].map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`px-6 py-3 rounded-lg font-bold transition ${
-                tab === key ? 'bg-yellow-500 text-black' : 'bg-gray-800 hover:bg-gray-700'
-              }`}
+              className={`px-6 py-3 rounded-lg font-bold transition ${tab === key ? 'bg-yellow-500 text-black' : 'bg-gray-800 hover:bg-gray-700'}`}
             >
               {label}
             </button>
           ))}
         </div>
 
-        {/* BUSCADOR SOLO CUANDO ESTÁ EN LA PESTAÑA "BUSCADOR" */}
+        {/* BUSCADOR */}
         {tab === 'buscador' && viewMode === 'list' && (
           <div className="max-w-2xl mx-auto mb-12 px-4">
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
@@ -226,7 +215,6 @@ export default function Home() {
         {/* LISTADO */}
         {viewMode === 'list' && (
         <>
-          {/* MODO A-Z → solo texto */}
           {(tab === 'todos_az' || tab === 'buscador') ? (
             <div className="max-w-4xl mx-auto">
               <div className="space-y-3">
@@ -253,61 +241,42 @@ export default function Home() {
                     className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
                   >
                     {loading ? 'Cargando...' : 'Cargar más juegos'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* MODO NORMAL CON PORTADAS */
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
-                  {games.map((game) => (
-                    <div key={game.id} className="space-y-4">
-                      <div
-                        onClick={() => handleSelect(game, games)}
-                        className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
-                      >
-                        <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
-                          <Image
-                            src={game.cover || '/placeholder-cover.jpg'}
-                            alt={game.title}
-                            width={300}
-                            height={450}
-                            className="w-full h-auto object-cover"
-                            unoptimized
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition">
-                            <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">
-                              {game.title}
-                            </p>
-                          </div>
-                        </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
+              {games.map((game) => (
+                <div key={game.id} className="space-y-4">
+                  <div
+                    onClick={() => handleSelect(game, games)}
+                    className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
+                  >
+                    <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
+                      <Image
+                        src={game.cover || '/placeholder-cover.jpg'}
+                        alt={game.title}
+                        width={300}
+                        height={450}
+                        className="w-full h-auto object-cover"
+                        unoptimized
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition">
+                        <p className="absolute bottom-3 left-3 right-3 text-sm font-bold line-clamp-3">
+                          {game.title}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-
-                {loading && games.length === 0 && (
-                  <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
-                )}
-
-                {hasMore && games.length > 0 && (
-                  <div className="text-center mt-16">
-                    <button
-                      onClick={loadMore}
-                      disabled={loading}
-                      className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
-                    >
-                      {loading ? 'Cargando...' : 'Cargar más'}
-                    </button>
                   </div>
-                )}
-              </>
-            )}
-          </>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
         )}
 
-        {/* DETALLE DEL JUEGO (100 % IGUAL QUE ANTES) */}
+        {/* DETALLE */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
             <button
@@ -366,6 +335,16 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* NUEVO: Modal para capturas */}
+                {modalImage && (
+                  <div
+                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+                    onClick={() => setModalImage(null)}
+                  >
+                    <img src={modalImage} alt="Captura ampliada" className="max-h-full max-w-full rounded-xl shadow-2xl" />
+                  </div>
+                )}
+
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
@@ -373,14 +352,12 @@ export default function Home() {
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {selectedDetails.screenshots.slice(0, 8).map((src, i) => (
-                        <Image
+                        <img
                           key={i}
                           src={src}
                           alt={`Captura ${i + 1}`}
-                          width={400}
-                          height={225}
-                          className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300 object-cover"
-                          unoptimized
+                          className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300 object-cover cursor-pointer"
+                          onClick={() => setModalImage(src)} // CLICK ABRE MODAL
                         />
                       ))}
                     </div>
