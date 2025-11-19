@@ -34,20 +34,14 @@ function MarkdownText({ text }) {
 // ──────────────────────────────────────────────────────────────
 async function sendMagnetToQB(magnet) {
   try {
-    const form = new FormData();
-    form.append('urls', magnet);
-    form.append('paused', 'false');
-    const res = await fetch('http://localhost:8080/api/v2/torrents/add', {
-      method: 'POST',
-      body: form,
-      credentials: 'include',
-    });
-    if (!res.ok) throw new Error('qBittorrent add failed');
-    alert('Magnet enviado a qBittorrent');
+    // abrir directamente el magnet en el cliente por protocolo
+    window.location.href = magnet;
+    alert('Magnet abierto en qBittorrent');
   } catch (err) {
-    alert('Error enviando magnet: ' + err.message);
+    alert('Error abriendo magnet: ' + err.message);
   }
 }
+
 
 export default function Home() {
   const [games, setGames] = useState([]);
