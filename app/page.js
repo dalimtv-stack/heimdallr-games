@@ -281,7 +281,7 @@ export default function Home() {
                     <span>{showRepack ? '▲' : '▼'}</span>
                   </button>
                   {showRepack && (
-                    <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg">{selectedDetails.repackFeatures || 'N/A'}</p>
+                    <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg whitespace-pre-line">{selectedDetails.repackFeatures || 'N/A'}</p>
                   )}
                 </div>
 
