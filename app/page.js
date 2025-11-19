@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
 // ──────────────────────────────────────────────────────────────
@@ -11,17 +12,15 @@ function MarkdownText({ text }) {
     <>
       {parts.map((part, i) => {
         if (part.startsWith('**') && part.endsWith('**')) {
-          // Texto en negrita → lo mostramos en amarillo y bold
           return (
             <span key={i} className="font-bold text-yellow-400">
               {part.slice(2, -2)}
             </span>
           );
         }
-        // Texto normal → dividimos por saltos de línea
         return part.split('\n').map((line, j, arr) => (
           <span key={`${i}-${j}`}>
-            {line || '\u00A0'} {/* \u00A0 = espacio en blanco no colapsable */}
+            {line || '\u00A0'}
             {j < arr.length - 1 && <br />}
           </span>
         ));
@@ -29,6 +28,7 @@ function MarkdownText({ text }) {
     </>
   );
 }
+
 // ──────────────────────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────────────────────
@@ -48,6 +48,7 @@ async function sendMagnetToQB(magnet) {
     alert('Error enviando magnet: ' + err.message);
   }
 }
+
 export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
@@ -55,17 +56,19 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [tab, setTab] = useState('novedades');
-  const [viewMode, setViewMode] = useState('list'); // 'list' o 'detail'
+  const [viewMode, setViewMode] = useState('list');
   const [selectedGame, setSelectedGame] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [nextGame, setNextGame] = useState(null); // ← nuevo estado para "Siguiente juego"
+  const [nextGame, setNextGame] = useState(null);
+
   const fetchGames = async (reset = false) => {
     setLoading(true);
     const p = reset ? 1 : page;
     const params = new URLSearchParams();
     params.set('tab', tab);
+    if (search && tab === 'buscador') params.set('search', search);
     params.set('page', p);
     try {
       const res = await fetch(`/api/games?${params.toString()}`);
@@ -85,27 +88,19 @@ export default function Home() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
-    // FIX: al cambiar pestaña → limpia todo y muestra "Cargando juegos..."
-    setGames([]); // ← limpia la grid
-    setPage(1); // ← reinicia página
-    setHasMore(true); // ← asume que puede haber más
-    setSelectedGame(null); // ← cierra detalle si estaba abierto
+    setGames([]);
+    setPage(1);
+    setHasMore(true);
+    setSelectedGame(null);
     setSelectedDetails(null);
     setViewMode('list');
     setNextGame(null);
-    setLoading(true); // ← IMPORTANTE: fuerza el mensaje "Cargando juegos..."
-    fetchGames(true); // ← recarga desde página 1
-  }, [tab]);
-  // Precarga automática cuando llegamos al último juego visible
-  useEffect(() => {
-    if (selectedGame && viewMode === 'detail' && games.length > 0) {
-      const currentIndex = games.findIndex(g => g.id === selectedGame.id);
-      if (currentIndex === games.length - 1 && hasMore && !loading) {
-        fetchGames(); // carga siguiente página en segundo plano
-      }
-    }
-  }, [selectedGame, games.length, hasMore, loading, viewMode]);
+    setLoading(true);
+    fetchGames(true);
+  }, [tab, search]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
@@ -115,7 +110,9 @@ export default function Home() {
     setNextGame(null);
     fetchGames(true);
   };
+
   const loadMore = () => fetchGames();
+
   const handleSelect = async (game, currentList = games) => {
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
@@ -131,6 +128,7 @@ export default function Home() {
       setSelectedDetails({ error: true });
     }
   };
+
   const resetToHome = () => {
     setSearch('');
     setTab('novedades');
@@ -141,33 +139,26 @@ export default function Home() {
     setNextGame(null);
     fetchGames(true);
   };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
+        {/* TÍTULO */}
         <h1
           onClick={resetToHome}
           className="text-5xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition select-none"
         >
           Heimdallr Games
         </h1>
-        <form onSubmit={handleSearch} className="mb-8 flex gap-4 max-w-2xl mx-auto">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar juegos..."
-            className="flex-1 px-6 py-4 bg-gray-800 rounded-xl text-lg"
-          />
-          <button type="submit" className="px-10 py-4 bg-yellow-500 text-black font-bold rounded-xl">
-            Buscar
-          </button>
-        </form>
+
+        {/* PESTAÑAS */}
         <div className="mb-8 flex justify-center gap-2 flex-wrap">
           {[
             { key: 'novedades', label: 'Novedades' },
             { key: 'populares_mes', label: 'Populares (mes)' },
             { key: 'populares_ano', label: 'Populares (año)' },
             { key: 'todos_az', label: 'Todos (A-Z)' },
+            { key: 'buscador', label: 'Buscador' },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -181,10 +172,32 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ====================== LISTADO ====================== */}
+        {/* BUSCADOR SOLO CUANDO ESTÁ EN LA PESTAÑA "BUSCADOR" */}
+        {tab === 'buscador' && viewMode === 'list' && (
+          <div className="max-w-2xl mx-auto mb-12 px-4">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar juegos en todo el sitio..."
+                className="flex-1 px-6 py-4 bg-gray-800 rounded-xl text-lg focus:outline-none focus:ring-4 focus:ring-yellow-500/50"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="px-10 py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition"
+              >
+                Buscar
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* LISTADO */}
         {viewMode === 'list' && (
           <>
-            {/* MODO ESPECIAL: TODOS (A-Z) → solo texto bonito */}
+            {/* MODO A-Z → solo texto */}
             {tab === 'todos_az' ? (
               <div className="max-w-4xl mx-auto">
                 <div className="space-y-3">
@@ -217,7 +230,7 @@ export default function Home() {
                 )}
               </div>
             ) : (
-              /* MODO NORMAL CON PORTADAS (100% igual que antes) */
+              /* MODO NORMAL CON PORTADAS */
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
                   {games.map((game) => (
@@ -228,7 +241,7 @@ export default function Home() {
                       >
                         <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
                           <Image
-                            src={game.cover}
+                            src={game.cover || '/placeholder.jpg'}
                             alt={game.title}
                             width={300}
                             height={450}
@@ -245,6 +258,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
@@ -264,10 +278,9 @@ export default function Home() {
           </>
         )}
 
-        {/* ====================== DETALLE DEL JUEGO (100% IGUAL) ====================== */}
+        {/* DETALLE DEL JUEGO (100 % IGUAL QUE ANTES) */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            {/* Botón arriba */}
             <button
               onClick={() => setViewMode('list')}
               className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
@@ -282,7 +295,6 @@ export default function Home() {
             )}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
-                {/* Título + Carátula (orden correcto y responsive) */}
                 <div className="text-center space-y-6">
                   <h2 className="text-4xl md:text-5xl font-bold text-yellow-400 leading-tight">
                     {selectedDetails.title && !selectedDetails.title.includes('FitGirl Repacks')
@@ -300,7 +312,6 @@ export default function Home() {
                     />
                   </div>
                 </div>
-                {/* Campos principales */}
                 <div className="text-sm space-y-2">
                   <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
                   <p><strong>Compañía:</strong> {selectedDetails.company || 'N/A'}</p>
@@ -308,19 +319,13 @@ export default function Home() {
                   <p><strong>Tamaño Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
                   <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
                   <p><strong>Tamaño de la instalación:</strong> {selectedDetails.installedSize || 'N/A'}</p>
-                  {/* Mirrors como lista */}
                   <div className="space-y-2">
                     <p className="font-bold">Download Mirrors:</p>
                     {selectedDetails.mirrors?.length > 0 ? (
                       <ul className="list-disc list-inside text-sm">
                         {selectedDetails.mirrors.map((url, i) => (
                           <li key={i}>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:underline break-all"
-                            >
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline break-all">
                               {url.startsWith('magnet:') ? 'Magnet Link' : url}
                             </a>
                           </li>
@@ -331,7 +336,6 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-                {/* Capturas reales + Trailer (solo del bloque oficial) */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
@@ -350,15 +354,9 @@ export default function Home() {
                         />
                       ))}
                     </div>
-                    {/* Trailer si existe */}
                     {selectedDetails.trailerVideo && (
                       <div className="mt-8 max-w-4xl mx-auto">
-                        <video
-                          controls
-                          preload="metadata"
-                          className="w-full rounded-xl shadow-2xl border-4 border-yellow-500/30"
-                          poster={selectedDetails.screenshots[0]}
-                        >
+                        <video controls preload="metadata" className="w-full rounded-xl shadow-2xl border-4 border-yellow-500/30" poster={selectedDetails.screenshots[0]}>
                           <source src={selectedDetails.trailerVideo} type="video/webm" />
                           Tu navegador no soporta video.
                         </video>
@@ -366,7 +364,6 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                {/* Secciones plegables con estilo clickable */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
@@ -403,7 +400,6 @@ export default function Home() {
                     >
                       Instalar en qBittorrent
                     </button>
-                    {/* Imagen torrent-stats solo abajo */}
                     {selectedDetails.torrentStatsImage && (
                       <Image
                         src={selectedDetails.torrentStatsImage}
@@ -416,9 +412,7 @@ export default function Home() {
                     )}
                   </>
                 )}
-                {/* NAVEGACIÓN FINAL – PERFECTA, SIN ERRORES */}
                 <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
-                  {/* BOTÓN ATRÁS */}
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -435,7 +429,6 @@ export default function Home() {
                     <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
-                  {/* BOTÓN SIGUIENTE */}
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -452,7 +445,6 @@ export default function Home() {
                     <span className="text-xl">→</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
-                  {/* Mensaje solo cuando es realmente el último */}
                   {games.length > 0 &&
                     games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
                     !hasMore && (
