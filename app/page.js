@@ -14,15 +14,17 @@ function MarkdownText({ text }) {
     <>
       {parts.map((part, i) => {
         if (part.startsWith('**') && part.endsWith('**')) {
+          // Texto en negrita → lo mostramos en amarillo y bold
           return (
             <span key={i} className="font-bold text-yellow-400">
               {part.slice(2, -2)}
             </span>
           );
         }
+        // Texto normal → dividimos por saltos de línea
         return part.split('\n').map((line, j, arr) => (
           <span key={`${i}-${j}`}>
-            {line || '\u00A0'}
+            {line || '\u00A0'} {/* \u00A0 = espacio en blanco no colapsable */}
             {j < arr.length - 1 && <br />}
           </span>
         ));
@@ -32,9 +34,9 @@ function MarkdownText({ text }) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Envío de magnet a qBittorrent
+// Componente principal
 // ──────────────────────────────────────────────────────────────
-async function sendMagnetToQB(magnet: string) {
+async function sendMagnetToQB(magnet) {
   try {
     const form = new FormData();
     form.append('urls', magnet);
@@ -47,26 +49,23 @@ async function sendMagnetToQB(magnet: string) {
     if (!res.ok) throw new Error('qBittorrent add failed');
     alert('Magnet enviado a qBittorrent');
   } catch (err) {
-    alert('Error enviando magnet: ' + (err as Error).message);
+    alert('Error enviando magnet: ' + err.message);
   }
 }
 
 export default function Home() {
   const [games, setGames] = useState([]);
-  const [selectedGame, setSelectedGame] = useState(null);
-  const [selectedDetails, setSelectedDetails] = useState(null);
-  const [nextGame, setNextGame] = useState(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [tab, setTab] = useState('novedades');
-  const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
-  const [selectedGame, setSelectedGame] = useState<any>(null);
-  const [selectedDetails, setSelectedDetails] = useState<any>(null);
+  const [viewMode, setViewMode] = useState('list'); // 'list' o 'detail'
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [selectedDetails, setSelectedDetails] = useState(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [nextGame, setNextGame] = useState<any>(null); // ← Nuevo estado
+  const [nextGame, setNextGame] = useState(null); // ← nuevo estado para "Siguiente juego"
 
   const fetchGames = async (reset = false) => {
     setLoading(true);
@@ -102,7 +101,7 @@ export default function Home() {
     fetchGames(true);
   }, [tab]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
     setSelectedGame(null);
@@ -114,8 +113,7 @@ export default function Home() {
 
   const loadMore = () => fetchGames();
 
-  // ← handleSelect actualizado para calcular el siguiente juego
-  const handleSelect = async (game: any, currentList: any[] = games) => {
+  const handleSelect = async (game, currentList = games) => {
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
     setViewMode('detail');
@@ -186,7 +184,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* LISTADO */}
         {viewMode === 'list' && (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
@@ -234,9 +231,9 @@ export default function Home() {
           </>
         )}
 
-        {/* DETALLE */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
+            {/* Botón arriba */}
             <button
               onClick={() => setViewMode('list')}
               className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
@@ -253,14 +250,14 @@ export default function Home() {
 
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
-
-                {/* Título + Carátula */}
+                {/* Título + Carátula (orden correcto y responsive) */}
                 <div className="text-center space-y-6">
                   <h2 className="text-4xl md:text-5xl font-bold text-yellow-400 leading-tight">
                     {selectedDetails.title && !selectedDetails.title.includes('FitGirl Repacks')
                       ? selectedDetails.title
                       : selectedGame.title}
                   </h2>
+
                   <div className="flex justify-center">
                     <Image
                       src={selectedDetails.cover || selectedGame.cover}
@@ -273,7 +270,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Info básica */}
+                {/* Campos principales */}
                 <div className="text-sm space-y-2">
                   <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
                   <p><strong>Compañía:</strong> {selectedDetails.company || 'N/A'}</p>
@@ -282,30 +279,38 @@ export default function Home() {
                   <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
                   <p><strong>Tamaño de la instalación:</strong> {selectedDetails.installedSize || 'N/A'}</p>
 
+                  {/* Mirrors como lista */}
                   <div className="space-y-2">
                     <p className="font-bold">Download Mirrors:</p>
                     {selectedDetails.mirrors?.length > 0 ? (
                       <ul className="list-disc list-inside text-sm">
-                        {selectedDetails.mirrors.map((url: string, i: number) => (
+                        {selectedDetails.mirrors.map((url, i) => (
                           <li key={i}>
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline break-all">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:underline break-all"
+                            >
                               {url.startsWith('magnet:') ? 'Magnet Link' : url}
                             </a>
                           </li>
                         ))}
                       </ul>
-                    ) : <p>N/A</p>}
+                    ) : (
+                      <p>N/A</p>
+                    )}
                   </div>
                 </div>
 
-                {/* Capturas + Trailer */}
+                {/* Capturas reales + Trailer (solo del bloque oficial) */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
                       Capturas del juego
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {selectedDetails.screenshots.slice(0, 8).map((src: string, i: number) => (
+                      {selectedDetails.screenshots.slice(0, 8).map((src, i) => (
                         <Image
                           key={i}
                           src={src}
@@ -318,6 +323,7 @@ export default function Home() {
                       ))}
                     </div>
 
+                    {/* Trailer si existe */}
                     {selectedDetails.trailerVideo && (
                       <div className="mt-8 max-w-4xl mx-auto">
                         <video
@@ -334,7 +340,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Repack Features */}
+                {/* Secciones plegables con estilo clickable */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
@@ -350,7 +356,6 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Información del juego */}
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
@@ -366,7 +371,6 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* qBittorrent + Stats */}
                 {selectedDetails.csrinLink && (
                   <>
                     <button
@@ -375,6 +379,8 @@ export default function Home() {
                     >
                       Instalar en qBittorrent
                     </button>
+
+                    {/* Imagen torrent-stats solo abajo */}
                     {selectedDetails.torrentStatsImage && (
                       <Image
                         src={selectedDetails.torrentStatsImage}
