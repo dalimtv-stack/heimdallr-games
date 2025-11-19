@@ -148,17 +148,17 @@ export async function GET(req) {
 		  ])
 		);
 	 	
-	  // ── Tamaño después de instalado (justo después de Repack Size)
-		const installedSize = textOrNull(
-		  matchOne(html, [
-			/•\s*HDD space after installation[:\s]*([^\n<]+)/i,
-		    /HDD space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
-		    /Space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
-		    /Disk space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
-		    /Installation requires[:\s]*[\d.,\s–~]+ ?(?:GB|MB).+?up to ([\d.,\s–~]+ ?(?:GB|MB))/i,  // caso "up to 49.2 GB"
-		    /After-install.*?(?:up to|[:\s])([\d.,\s–~]+ ?(?:GB|MB))/i
-		  ])
-		);
+	// ── Tamaño después de instalado (funciona con • pegado, "up to", rangos, etc.)
+	const installedSize = textOrNull(
+	  matchOne(html, [
+	    /[•·]\s*HDD space after installation[:\s]*([^\n\r<]+)/i,
+	    /HDD space after installation[:\s]*up to\s*([^\n\r<]+)/i,
+	    /HDD space after installation[:\s]*([^\n\r<]+)/i,
+	    /HDD space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
+	    /up to ([\d.,\s–~]+ ?(?:GB|MB)).*?(?:installation|HDD|disk)/i,
+	    /HDD space after installation[^•]*?([\d.,\s–~]+ ?(?:GB|MB))/i
+	  ])
+	);
     // Mirrors
     const mirrors = [
       ...new Set([
