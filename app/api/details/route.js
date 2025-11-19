@@ -150,15 +150,16 @@ export async function GET(req) {
 	 	
 	// ── Tamaño después de instalado (funciona con • pegado, "up to", rangos, etc.)
 	const installedSize = textOrNull(
-	  matchOne(html, [
-	    /[•·]\s*HDD space after installation[:\s]*([^\n\r<]+)/i,
-	    /HDD space after installation[:\s]*up to\s*([^\n\r<]+)/i,
-	    /HDD space after installation[:\s]*([^\n\r<]+)/i,
-	    /HDD space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
-	    /up to ([\d.,\s–~]+ ?(?:GB|MB)).*?(?:installation|HDD|disk)/i,
-	    /HDD space after installation[^•]*?([\d.,\s–~]+ ?(?:GB|MB))/i
-	  ])
+		matchOne(html, [
+			/[•·]\s*HDD space after installation[:\s]*([^\n\r<]+)/i,
+			/HDD space after installation[:\s]*up to\s+([^\n\r<]+)/i,
+			/HDD space after installation[:\s]*([^\n\r<]+)/i,
+			/HDD space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
+			/up to ([\d.,\s–~]+ ?(?:GB|MB)).*?(?:installation|HDD)/i,
+			/HDD space after installation[^•]*?([\d.,\s–~]+ ?(?:GB|MB))/i
+		])
 	);
+	  
     // Mirrors
     const mirrors = [
       ...new Set([
@@ -193,8 +194,8 @@ export async function GET(req) {
 	const repackFeaturesRaw = matchOne(html, [
 	  /<h3[^>]*>Repack Features<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,
 	  /<h3[^>]*>Repack Features<\/h3>\s*<ul[^>]*>([\s\S]*?)<\/ul>/i,
-	  /<h3[^>]*>Repack Features<\/h3>\s*([\s*<div[^>]*>([\s\S]*?)<\/div>/i,
-	  /<h3[^>]*>Repack Features<\/h3>\s*([\s\S]*?)(?=<h3|Download Mirrors|<\/div>|<p><strong>Game Description)/i
+	  /<h3[^>]*>Repack Features<\/h3>\s*[\s\S]*?(?:<h3|<div class="idc-)/i,  // fallback seguro sin regex roto
+	  /<h3[^>]*>Repack Features<\/h3>\s*([\s\S]*?)(?=<h3|Download Mirrors|<\/div>)/i
 	]);
 	
 	const repackFeatures = repackFeaturesRaw
