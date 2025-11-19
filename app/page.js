@@ -206,21 +206,24 @@ export default function Home() {
             )}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
-                {/* Carátula + título con fallback */}
-                <div className="flex gap-6 items-start">
-                  <Image
-                    src={selectedDetails.cover || selectedGame.cover}
-                    alt={selectedDetails.title || selectedGame.title}
-                    width={200}
-                    height={300}
-                    className="rounded-lg"
-                    unoptimized
-                  />
-                  <h3 className="text-3xl font-bold text-yellow-400">
+                {/* Título + Carátula (orden correcto y responsive) */}
+                <div className="text-center space-y-6">
+                  <h2 className="text-4xl md:text-5xl font-bold text-yellow-400 leading-tight">
                     {selectedDetails.title && !selectedDetails.title.includes('FitGirl Repacks')
                       ? selectedDetails.title
                       : selectedGame.title}
-                  </h3>
+                  </h2>
+                  
+                  <div className="flex justify-center">
+                    <Image
+                      src={selectedDetails.cover || selectedGame.cover}
+                      alt={selectedDetails.title || selectedGame.title}
+                      width={280}
+                      height={420}
+                      className="rounded-xl shadow-2xl border-4 border-yellow-500/30"
+                      unoptimized
+                    />
+                  </div>
                 </div>
 
                 {/* Campos principales */}
@@ -256,20 +259,32 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Capturas más compactas */}
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedDetails.screenshots?.slice(0, 4).map((src, i) => (
-                    <Image
-                      key={i}
-                      src={src}
-                      alt=""
-                      width={300}
-                      height={169}
-                      className="rounded-lg"
-                      unoptimized
-                    />
-                  ))}
-                </div>
+                {/* Capturas reales (excluye la carátula principal) */}
+                {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-2xl font-bold text-yellow-400 mb-4 text-center">Capturas del juego</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {selectedDetails.screenshots
+                        .filter(src => 
+                          src !== (selectedDetails.cover || selectedGame.cover) && 
+                          !src.includes('imageban.ru') &&  // a veces la carátula viene de aquí también
+                          !src.includes('/cover/')
+                        )
+                        .slice(0, 8)
+                        .map((src, i) => (
+                          <Image
+                            key={i}
+                            src={src}
+                            alt={`Screenshot ${i + 1}`}
+                            width={400}
+                            height={225}
+                            className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300"
+                            unoptimized
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Secciones plegables con estilo clickable */}
                 <div>
