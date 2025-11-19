@@ -7,6 +7,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
   const tab = searchParams.get('tab') || 'novedades';
+  const searchQuery = searchParams.get('search')?.trim();
 
   const base = {
     novedades: 'https://fitgirl-repacks.site/',
@@ -16,8 +17,19 @@ export async function GET(request) {
   };
 
   let url = base[tab] || base.novedades;
-  if (page > 1 && tab !== 'todos_az') url += `page/${page}/`;
-  if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
+
+  // ==================== BÚSQUEDA REAL (nueva) ====================
+  if (tab === 'buscador' && searchQuery) {
+    if (page === 1) {
+      url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(searchQuery)}`;
+    } else {
+      url = `https://fitgirl-repacks.site/page/${page}/?s=${encodeURIComponent(searchQuery)}`;
+    }
+  } else {
+    // Resto de pestañas (tu lógica original)
+    if (page > 1 && tab !== 'todos_az') url += `page/${page}/`;
+    if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
+  }
 
   try {
     const { data } = await axios.get(url, {
@@ -68,30 +80,25 @@ export async function GET(request) {
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
         games.push({ id, title, cover, postUrl });
       });
-      // Paginación del año (las páginas usan el mismo formato que novedades)
       const hasMore = $('.pagination .next').length > 0;
       return NextResponse.json({ games, hasMore });
     }
 
-    // ==================== NOVEDADES + A-Z (código original) ====================
-    // ← FIX AÑADIDO AQUÍ PARA TODOS (A-Z) – sin tocar el resto
+    // ==================== BÚSQUEDA + NOVEDADES + A-Z ====================
     if (tab === 'todos_az') {
       // La página A-Z usa el plugin ListCategoryPosts → los juegos están en #lcp_instance_0
       $('#lcp_instance_0 li a').each((_, el) => {
         const a = $(el);
         const postUrl = a.attr('href');
         if (!postUrl || !postUrl.includes('fitgirl-repacks.site')) return;
-
         let title = a.text().trim();
         title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
-
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
-
         // No hay portada en esta página → dejamos cover vacío (el frontend lo maneja)
         games.push({ id, title, cover: '', postUrl });
       });
     } else {
-      // ← Código original de novedades (100 % intacto)
+      // NOVEDADES + BÚSQUEDA (mismo formato: article.post)
       $('article.post').each((_, el) => {
         const article = $(el);
         const link = article.find('h1.entry-title a, h2.entry-title a').first();
@@ -103,6 +110,7 @@ export async function GET(request) {
         const id = postUrl
           ? crypto.createHash('md5').update(postUrl).digest('hex')
           : Date.now().toString();
+
         let cover = '';
         const img = article.find('img').first();
         if (img.length) {
@@ -112,11 +120,12 @@ export async function GET(request) {
         if (!cover) {
           cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
         }
+
         games.push({ id, title, cover, postUrl });
       });
     }
 
-    // Paginación (igual que tenías)
+    // Paginación unificada
     let hasMore = false;
     if (tab === 'todos_az') {
       hasMore = $('a[href*="lcp_page0"]').length > 0;
