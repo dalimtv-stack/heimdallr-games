@@ -7,9 +7,7 @@ import Image from 'next/image';
 // ──────────────────────────────────────────────────────────────
 function MarkdownText({ text }) {
   if (!text) return <p className="text-gray-500 italic">No hay descripción disponible.</p>;
-
   const parts = text.split(/(\*\*.*?\*\*)/g);
-
   return (
     <>
       {parts.map((part, i) => {
@@ -101,6 +99,16 @@ export default function Home() {
     fetchGames(true);
   }, [tab]);
 
+  // Precarga automática cuando llegamos al último juego visible
+  useEffect(() => {
+    if (selectedGame && viewMode === 'detail' && games.length > 0) {
+      const currentIndex = games.findIndex(g => g.id === selectedGame.id);
+      if (currentIndex === games.length - 1 && hasMore && !loading) {
+        fetchGames(); // carga siguiente página en segundo plano
+      }
+    }
+  }, [selectedGame, games.length, hasMore, loading, viewMode]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
@@ -117,11 +125,9 @@ export default function Home() {
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
     setViewMode('detail');
-
     const currentIndex = currentList.findIndex(g => g.id === game.id);
     const next = currentList[currentIndex + 1] || null;
     setNextGame(next);
-
     try {
       const res = await fetch(`/api/details?url=${encodeURIComponent(game.postUrl)}`);
       const data = await res.json();
@@ -151,7 +157,6 @@ export default function Home() {
         >
           Heimdallr Games
         </h1>
-
         <form onSubmit={handleSearch} className="mb-8 flex gap-4 max-w-2xl mx-auto">
           <input
             type="text"
@@ -164,7 +169,6 @@ export default function Home() {
             Buscar
           </button>
         </form>
-
         <div className="mb-8 flex justify-center gap-2 flex-wrap">
           {[
             { key: 'novedades', label: 'Novedades' },
@@ -183,7 +187,6 @@ export default function Home() {
             </button>
           ))}
         </div>
-
         {viewMode === 'list' && (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
@@ -212,11 +215,9 @@ export default function Home() {
                 </div>
               ))}
             </div>
-
             {loading && games.length === 0 && (
               <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
             )}
-
             {hasMore && games.length > 0 && (
               <div className="text-center mt-16">
                 <button
@@ -230,7 +231,6 @@ export default function Home() {
             )}
           </>
         )}
-
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
             {/* Botón arriba */}
@@ -240,14 +240,12 @@ export default function Home() {
             >
               Volver al listado
             </button>
-
             {selectedDetails?.loading && (
               <p className="text-center text-yellow-400">Cargando detalles...</p>
             )}
             {selectedDetails?.error && (
               <p className="text-center text-red-400">Error al cargar detalles</p>
             )}
-
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
                 {/* Título + Carátula (orden correcto y responsive) */}
@@ -257,7 +255,6 @@ export default function Home() {
                       ? selectedDetails.title
                       : selectedGame.title}
                   </h2>
-
                   <div className="flex justify-center">
                     <Image
                       src={selectedDetails.cover || selectedGame.cover}
@@ -269,7 +266,6 @@ export default function Home() {
                     />
                   </div>
                 </div>
-
                 {/* Campos principales */}
                 <div className="text-sm space-y-2">
                   <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
@@ -278,7 +274,6 @@ export default function Home() {
                   <p><strong>Tamaño Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
                   <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
                   <p><strong>Tamaño de la instalación:</strong> {selectedDetails.installedSize || 'N/A'}</p>
-
                   {/* Mirrors como lista */}
                   <div className="space-y-2">
                     <p className="font-bold">Download Mirrors:</p>
@@ -302,7 +297,6 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-
                 {/* Capturas reales + Trailer (solo del bloque oficial) */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
@@ -322,7 +316,6 @@ export default function Home() {
                         />
                       ))}
                     </div>
-
                     {/* Trailer si existe */}
                     {selectedDetails.trailerVideo && (
                       <div className="mt-8 max-w-4xl mx-auto">
@@ -339,7 +332,6 @@ export default function Home() {
                     )}
                   </div>
                 )}
-
                 {/* Secciones plegables con estilo clickable */}
                 <div>
                   <button
@@ -355,7 +347,6 @@ export default function Home() {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
@@ -370,7 +361,6 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-
                 {selectedDetails.csrinLink && (
                   <>
                     <button
@@ -379,7 +369,6 @@ export default function Home() {
                     >
                       Instalar en qBittorrent
                     </button>
-
                     {/* Imagen torrent-stats solo abajo */}
                     {selectedDetails.torrentStatsImage && (
                       <Image
@@ -393,9 +382,8 @@ export default function Home() {
                     )}
                   </>
                 )}
-
-                {/* NAVEGACIÓN PERFECTA – Atrás / Siguiente con precarga automática */}
-                <div className="mt-8 flex flex flex-wrap gap-4 justify-start items-center">
+                {/* NAVEGACIÓN FINAL – PERFECTA, SIN ERRORES */}
+                <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
                   {/* BOTÓN ATRÁS */}
                   <button
                     onClick={() => {
@@ -408,56 +396,38 @@ export default function Home() {
                         setViewMode('list');
                       }
                     }}
-                    className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-500 transition"
+                    className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-500 transition whitespace-nowrap"
                   >
                     <span className="text-xl">←</span>
-                    <span className="hidden sm:inline">Atrás</span>
-                    <span className="sm:hidden">Atrás</span>
+                    <span>Atrás</span>
                   </button>
-                
-                  {/* BOTÓN SIGUIENTE + PRECARGA AUTOMÁTICA */}
-                  {(() => {
-                    const currentIndex = games.findIndex(g => g.id === selectedGame.id);
-                    const isLastInList = currentIndex === games.length - 1;
-                
-                    // Si estamos en el último juego visible → precargamos más (solo una vez)
-                    useEffect(() => {
-                      if (isLastInList && hasMore && !loading) {
-                        fetchGames(); // carga la siguiente página en segundo plano
+
+                  {/* BOTÓN SIGUIENTE */}
+                  <button
+                    onClick={() => {
+                      const currentIndex = games.findIndex(g => g.id === selectedGame.id);
+                      const nextGame = games[currentIndex + 1];
+                      if (nextGame) {
+                        handleSelect(nextGame, games);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                       }
-                    }, [isLastInList, hasMore, loading]);
-                
-                    const nextGameExists = currentIndex < games.length - 1 || (isLastInList && hasMore);
-                
-                    return (
-                      <>
-                        <button
-                          onClick={() => {
-                            const nextIndex = games.findIndex(g => g.id === selectedGame.id) + 1;
-                            const nextGame = games[nextIndex];
-                            if (nextGame) {
-                              handleSelect(nextGame, games);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }
-                          }}
-                          disabled={!nextGameExists || loading}
-                          className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                        >
-                          <span className="hidden sm:inline">Siguiente</span>
-                          <span className="sm:hidden">Siguiente</span>
-                          <span className="text-xl">→</span>
-                          {loading && <span className="ml-2 animate-pulse">…</span>}
-                        </button>
-                
-                        {/* Mensaje solo cuando REALMENTE no hay más juegos en todo el sitio */}
-                        {!hasMore && isLastInList && (
-                          <div className="text-gray-500 text-sm italic ml-4">
-                            Último juego de la lista
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
+                    }}
+                    disabled={loading || games.findIndex(g => g.id === selectedGame.id) === games.length - 1}
+                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
+                  >
+                    <span>Siguiente</span>
+                    <span className="text-xl">→</span>
+                    {loading && <span className="ml-2 animate-pulse">…</span>}
+                  </button>
+
+                  {/* Mensaje solo cuando es realmente el último */}
+                  {games.length > 0 &&
+                    games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
+                    !hasMore && (
+                      <div className="text-gray-500 text-sm italic ml-4">
+                        Último juego de la lista
+                      </div>
+                    )}
                 </div>
               </div>
             )}
