@@ -29,27 +29,29 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // POPULARES DEL MES → 100% FUNCIONAL con el HTML real que me pasaste
+    // POPULARES DEL MES → SOLO los 50 del widget "Most Popular Repacks of the Month"
     if (tab === 'populares_mes') {
-      $('div.widget-grid-view-image').each((_, el) => {
+      // Buscamos el título exacto y nos quedamos solo con los items que están dentro de ese widget
+      const monthWidget = $('h2.widgettitle:contains("Most Popular Repacks of the Month")')
+        .closest('.jetpack_top_posts_widget')
+        .find('div.widget-grid-view-image');
+
+      monthWidget.each((_, el) => {
         const container = $(el);
         const link = container.find('a').first();
         const img = container.find('img').first();
 
-        if (!link.length) return;
+        if (!link.length || !img.length) return;
 
         const postUrl = link.attr('href');
-        if (!postUrl || !postUrl.includes('fitgirl-repacks.site')) return;
+        if (!postUrl?.includes('fitgirl-repacks.site')) return;
 
-        // Título perfecto: del atributo "title" del <a>
         let title = link.attr('title') || img.attr('alt') || 'Unknown Game';
         title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
 
-        // Portada real (150x200 → la redimensionamos en frontend, queda perfecta)
         let cover = img.attr('src') || '';
         if (cover.includes('?resize=')) {
-          // Quitamos el resize pequeño y usamos la imagen original
-          cover = cover.split('?resize=')[0];
+          cover = cover.split('?resize=')[0]; // imagen original, alta calidad
         }
 
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
