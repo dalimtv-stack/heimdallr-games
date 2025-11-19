@@ -53,7 +53,7 @@ export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [tab, setTab] = useState('novedades');
   const [viewMode, setViewMode] = useState('list');
@@ -64,7 +64,7 @@ export default function Home() {
   const [nextGame, setNextGame] = useState(null);
 
   const fetchGames = async (reset = false) => {
-    // Si estamos en buscador y no hay texto → no hacer nada
+    // Si estamos en buscador y no hay texto → no cargar nada
     if (tab === 'buscador' && !search.trim()) {
       setGames([]);
       setHasMore(false);
@@ -74,10 +74,9 @@ export default function Home() {
 
     setLoading(true);
     const p = reset ? 1 : page;
-
     const params = new URLSearchParams();
     params.set('tab', tab);
-    if (tab === 'buscador' && search.trim()) params.set('search', search.trim());
+    if (search && tab === 'buscador') params.set('search', search.trim());
     params.set('page', p);
 
     try {
@@ -95,8 +94,6 @@ export default function Home() {
       setHasMore(data.hasMore);
     } catch (err) {
       console.error('Error cargando juegos:', err);
-      setGames([]);
-      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -116,13 +113,12 @@ export default function Home() {
       setLoading(true);
       fetchGames(true);
     } else {
-      // En buscador: vacío hasta que escriba
       setLoading(false);
       if (search.trim()) fetchGames(true);
     }
   }, [tab]);
 
-  // Búsqueda automática al escribir (con debounce)
+  // Búsqueda en tiempo real (solo en la pestaña Buscador)
   useEffect(() => {
     if (tab !== 'buscador') return;
 
@@ -145,8 +141,10 @@ export default function Home() {
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    setGames([]);
-    setLoading(true);
+    setSelectedGame(null);
+    setSelectedDetails(null);
+    setViewMode('list');
+    setNextGame(null);
     fetchGames(true);
   };
 
@@ -172,7 +170,6 @@ export default function Home() {
     setSearch('');
     setTab('novedades');
     setPage(1);
-    setGames([]);
     setSelectedGame(null);
     setSelectedDetails(null);
     setViewMode('list');
@@ -212,7 +209,7 @@ export default function Home() {
           ))}
         </div>
 
-        {/* BUSCADOR SOLO EN SU PESTAÑA */}
+        {/* BUSCADOR SOLO CUANDO ESTÁ EN LA PESTAÑA "BUSCADOR" */}
         {tab === 'buscador' && viewMode === 'list' && (
           <div className="max-w-2xl mx-auto mb-12 px-4">
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
@@ -220,7 +217,7 @@ export default function Home() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Escribe el nombre del juego y pulsa Enter..."
+                placeholder="Buscar juegos en todo el sitio..."
                 className="flex-1 px-6 py-4 bg-gray-800 rounded-xl text-lg focus:outline-none focus:ring-4 focus:ring-yellow-500/50"
                 autoFocus
               />
@@ -233,7 +230,6 @@ export default function Home() {
               </button>
             </form>
 
-            {/* Mensajes de estado */}
             {!search.trim() && !loading && (
               <div className="text-center mt-20 text-gray-400">
                 <p className="text-3xl">Escribe el nombre del juego arriba</p>
@@ -253,7 +249,7 @@ export default function Home() {
         {/* LISTADO */}
         {viewMode === 'list' && (
           <>
-            {/* TODOS (A-Z) */}
+            {/* MODO A-Z → solo texto */}
             {tab === 'todos_az' ? (
               <div className="max-w-4xl mx-auto">
                 <div className="space-y-3">
@@ -275,14 +271,18 @@ export default function Home() {
                 )}
                 {hasMore && games.length > 0 && (
                   <div className="text-center mt-16">
-                    <button onClick={loadMore} disabled={loading} className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50">
+                    <button
+                      onClick={loadMore}
+                      disabled={loading}
+                      className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
+                    >
                       {loading ? 'Cargando...' : 'Cargar más juegos'}
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              /* MODO NORMAL CON PORTADAS (todas las pestañas excepto A-Z) */
+              /* MODO NORMAL CON PORTADAS */
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
                   {games.map((game) => (
@@ -293,7 +293,12 @@ export default function Home() {
                       >
                         <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
                           <Image
-                            src={game.cover || '/placeholder.jpg'}
+                            src={
+                              game.cover ||
+                              `https://via.placeholder.com/300x450/222/fff?text=${encodeURIComponent(
+                                game.title.slice(0, 20)
+                              )}`
+                            }
                             alt={game.title}
                             width={300}
                             height={450}
@@ -317,7 +322,11 @@ export default function Home() {
 
                 {hasMore && games.length > 0 && (
                   <div className="text-center mt-16">
-                    <button onClick={loadMore} disabled={loading} className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50">
+                    <button
+                      onClick={loadMore}
+                      disabled={loading}
+                      className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
+                    >
                       {loading ? 'Cargando...' : 'Cargar más'}
                     </button>
                   </div>
@@ -327,14 +336,21 @@ export default function Home() {
           </>
         )}
 
-        {/* DETALLE DEL JUEGO – 100 % IGUAL QUE ANTES */}
+        {/* DETALLE DEL JUEGO (100 % IGUAL QUE ANTES) */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            <button onClick={() => setViewMode('list')} className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
+            <button
+              onClick={() => setViewMode('list')}
+              className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
+            >
               Volver al listado
             </button>
-            {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
-            {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
+            {selectedDetails?.loading && (
+              <p className="text-center text-yellow-400">Cargando detalles...</p>
+            )}
+            {selectedDetails?.error && (
+              <p className="text-center text-red-400">Error al cargar detalles</p>
+            )}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
                 <div className="text-center space-y-6">
@@ -378,6 +394,7 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
@@ -406,13 +423,14 @@ export default function Home() {
                     )}
                   </div>
                 )}
+
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
                     className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                   >
                     Características del repack
-                    <span>{showRepack ? 'Up' : 'Down'}</span>
+                    <span>{showRepack ? '▲' : '▼'}</span>
                   </button>
                   {showRepack && (
                     <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg whitespace-pre-line">
@@ -420,13 +438,14 @@ export default function Home() {
                     </p>
                   )}
                 </div>
+
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
                     className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                   >
                     Información del juego
-                    <span>{showInfo ? 'Up' : 'Down'}</span>
+                    <span>{showInfo ? '▲' : '▼'}</span>
                   </button>
                   {showInfo && (
                     <div className="mt-2 text-sm bg-gray-900 p-6 rounded-lg leading-relaxed text-gray-200">
@@ -434,6 +453,7 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+
                 {selectedDetails.csrinLink && (
                   <>
                     <button
@@ -454,6 +474,8 @@ export default function Home() {
                     )}
                   </>
                 )}
+
+                {/* NAVEGACIÓN CORREGIDA */}
                 <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
                   <button
                     onClick={() => {
@@ -468,7 +490,7 @@ export default function Home() {
                     }}
                     className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-500 transition whitespace-nowrap"
                   >
-                    <span className="text-xl">Left</span>
+                    <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
                   <button
@@ -484,7 +506,7 @@ export default function Home() {
                     className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
                   >
                     <span>Siguiente</span>
-                    <span className="text-xl">Right</span>
+                    <span className="text-xl">→</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
                   {games.length > 0 &&
