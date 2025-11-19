@@ -1,7 +1,41 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+// ──────────────────────────────────────────────────────────────
+// Componente para mostrar negritas reales (solo **texto**)
+// ──────────────────────────────────────────────────────────────
+function MarkdownText({ text }) {
+  if (!text) return <p className="text-gray-500 italic">No hay descripción disponible.</p>;
 
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          // Texto en negrita → lo mostramos en amarillo y bold
+          return (
+            <span key={i} className="font-bold text-yellow-400">
+              {part.slice(2, -2)}
+            </span>
+          );
+        }
+
+        // Texto normal → dividimos por saltos de línea
+        return part.split('\n').map((line, j, arr) => (
+          <span key={`${i}-${j}`}>
+            {line || '\u00A0'} {/* \u00A0 = espacio en blanco no colapsable */}
+            {j < arr.length - 1 && <br />}
+          </span>
+        ));
+      })}
+    </>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Componente principal
+// ──────────────────────────────────────────────────────────────
 async function sendMagnetToQB(magnet) {
   try {
     const form = new FormData();
@@ -319,7 +353,9 @@ export default function Home() {
                     <span>{showInfo ? '▲' : '▼'}</span>
                   </button>
                   {showInfo && (
-                    <p className="mt-2 text-sm bg-gray-900 p-6 rounded-lg whitespace-pre-line leading-relaxed">{selectedDetails.gameInfo || 'No hay descripción disponible.'}</p>
+                    <div className="mt-2 text-sm bg-gray-900 p-6 rounded-lg leading-relaxed text-gray-200">
+                      <MarkdownText text={selectedDetails.gameInfo} />
+                    </div>
                   )}
                 </div>
 
