@@ -91,12 +91,16 @@ export default function Home() {
   };
 
   useEffect(() => {
-    setPage(1);
-    setSelectedGame(null);
+    // FIX: al cambiar pestaña → limpia todo y muestra "Cargando juegos..."
+    setGames([]);                    // ← limpia la grid
+    setPage(1);                      // ← reinicia página
+    setHasMore(true);                // ← asume que puede haber más
+    setSelectedGame(null);           // ← cierra detalle si estaba abierto
     setSelectedDetails(null);
     setViewMode('list');
     setNextGame(null);
-    fetchGames(true);
+    setLoading(true);                // ← IMPORTANTE: fuerza el mensaje "Cargando juegos..."
+    fetchGames(true);                // ← recarga desde página 1
   }, [tab]);
 
   // Precarga automática cuando llegamos al último juego visible
