@@ -29,29 +29,37 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // POPULARES DEL MES → extracción simple de enlaces directos (sin imágenes)
+    // POPULARES DEL MES → 100% FUNCIONAL con el HTML real que me pasaste
     if (tab === 'populares_mes') {
-      $('a[href*="/"]').each((_, el) => {
-        const link = $(el);
+      $('div.widget-grid-view-image').each((_, el) => {
+        const container = $(el);
+        const link = container.find('a').first();
+        const img = container.find('img').first();
+
+        if (!link.length) return;
+
         const postUrl = link.attr('href');
         if (!postUrl || !postUrl.includes('fitgirl-repacks.site')) return;
-    
-        // Título: del slug del URL o texto del link
-        let title = link.text().trim() || postUrl.split('/').pop() || 'Unknown Game';
-        title = title.replace(/–\s*FitGirl Repack.*/i, '').replace(/-/g, ' ').trim();
-    
-        // Cover: placeholder (esta página no tiene imágenes, se carga en details)
-        const cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
-    
+
+        // Título perfecto: del atributo "title" del <a>
+        let title = link.attr('title') || img.attr('alt') || 'Unknown Game';
+        title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
+
+        // Portada real (150x200 → la redimensionamos en frontend, queda perfecta)
+        let cover = img.attr('src') || '';
+        if (cover.includes('?resize=')) {
+          // Quitamos el resize pequeño y usamos la imagen original
+          cover = cover.split('?resize=')[0];
+        }
+
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
         games.push({ id, title, cover, postUrl });
       });
-    
-      // No tiene paginación → siempre 50 juegos
+
       return NextResponse.json({ games, hasMore: false });
     }
 
-    // TU CÓDIGO ORIGINAL SIN TOCAR (para novedades, año, A-Z, etc.)
+    // TU CÓDIGO ORIGINAL (Novedades, Año, A-Z) → SIN TOCAR NADA
     $('article.post').each((_, el) => {
       const article = $(el);
       const link = article.find('h1.entry-title a, h2.entry-title a').first();
