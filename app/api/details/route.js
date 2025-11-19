@@ -231,13 +231,12 @@ export async function GET(req) {
 	      gameDescriptionRaw
 	        .replace(/<br\s*\/?>/gi, '\n')
 	        .replace(/<\/p>/gi, '\n\n')
-	        .replace(/<\/?(strong|b)[^>]*>/gi, '**')
+	        .replace(/<\/?(strong|b)[^>]*>/gi, '||')   // ← usamos || como marcador temporal
 	        .replace(/<\/?ul[^>]*>/gi, '')
 	        .replace(/<\/?li[^>]*>/gi, '• ')
-	        .replace(/<[^>]+>/g, '')           // quita todo el HTML restante
-	        .replace(/\*\*/g, '**')            // limpia dobles
-	        .replace(/\n{3,}/g, '\n\n')        // máximo 2 saltos
-	        .replace(/^\s+|\s+$/g, '')
+	        .replace(/<[^>]+>/g, '')           // quita todo el resto de HTML
+	        .replace(/\|\|/g, '**')            // vuelve a poner ** solo donde había <strong> o <b>
+	        .replace(/\n{3,}/g, '\n\n')
 	        .trim()
 	    )
 	  : null;
