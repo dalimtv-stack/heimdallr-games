@@ -118,7 +118,7 @@ export async function GET(request) {
           if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
         }
         if (!cover) {
-          cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
+          cover = 'https://dummyimage.com/300x450/000000/ffffff.png&text=' + encodeURIComponent(title.slice(0, 15));
         }
 
         games.push({ id, title, cover, postUrl });
