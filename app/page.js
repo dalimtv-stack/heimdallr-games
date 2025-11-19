@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
 // ──────────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ function MarkdownText({ text }) {
     </>
   );
 }
+
 // ──────────────────────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────────────────────
@@ -63,41 +65,16 @@ export default function Home() {
   const [showInfo, setShowInfo] = useState(false);
   const [nextGame, setNextGame] = useState(null); // ← nuevo estado para "Siguiente juego"
 
-  // NUEVO: función para comprobar si un juego tiene género Adult
-  const checkIfAdult = async (gameUrl) => {
-    try {
-      const res = await fetch(`/api/genre?url=${encodeURIComponent(gameUrl)}`);
-      if (!res.ok) return false;
-      const data = await res.json();
-      return data.isAdult === true;
-    } catch {
-      return false;
-    }
-  };
-
-  // MODIFICADO: fetchGames ahora filtra juegos Adult por género real
   const fetchGames = async (reset = false) => {
     setLoading(true);
     const p = reset ? 1 : page;
     const params = new URLSearchParams();
     params.set('tab', tab);
     params.set('page', p);
-
     try {
       const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
-      let newGames = Array.isArray(data.games) ? data.games : [];
-
-      // FILTRADO REAL POR GÉNERO "ADULT"
-      const filtered = [];
-      for (const game of newGames) {
-        const isAdult = await checkIfAdult(game.postUrl);
-        if (!isAdult) {
-          filtered.push(game);
-        }
-      }
-      newGames = filtered;
-
+      const newGames = Array.isArray(data.games) ? data.games : [];
       if (reset) {
         setGames(newGames);
         setPage(2);
@@ -105,7 +82,7 @@ export default function Home() {
         setGames(prev => [...prev, ...newGames]);
         setPage(p + 1);
       }
-      setHasMore(data.hasMore && newGames.length > 0);
+      setHasMore(data.hasMore);
     } catch (err) {
       console.error('Error cargando juegos:', err);
     } finally {
@@ -115,15 +92,15 @@ export default function Home() {
 
   useEffect(() => {
     // FIX: al cambiar pestaña → limpia todo y muestra "Cargando juegos..."
-    setGames([]); // ← limpia la grid
-    setPage(1); // ← reinicia página
-    setHasMore(true); // ← asume que puede haber más
-    setSelectedGame(null); // ← cierra detalle si estaba abierto
+    setGames([]);                    // ← limpia la grid
+    setPage(1);                      // ← reinicia página
+    setHasMore(true);                // ← asume que puede haber más
+    setSelectedGame(null);           // ← cierra detalle si estaba abierto
     setSelectedDetails(null);
     setViewMode('list');
     setNextGame(null);
-    setLoading(true); // ← IMPORTANTE: fuerza el mensaje "Cargando juegos..."
-    fetchGames(true); // ← recarga desde página 1
+    setLoading(true);                // ← IMPORTANTE: fuerza el mensaje "Cargando juegos..."
+    fetchGames(true);                // ← recarga desde página 1
   }, [tab]);
 
   // Precarga automática cuando llegamos al último juego visible
@@ -175,7 +152,6 @@ export default function Home() {
     fetchGames(true);
   };
 
-  // TODO EL RESTO DEL RETURN → 100 % IGUAL QUE TENÍAS
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -259,7 +235,6 @@ export default function Home() {
             )}
           </>
         )}
-        {/* TODO EL DETALLE DEL JUEGO → 100 % IGUAL QUE TENÍAS */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
             {/* Botón arriba */}
@@ -425,11 +400,12 @@ export default function Home() {
                         setViewMode('list');
                       }
                     }}
-                    className="flex items-center gap-2 px-6 py-3 bg-orangeEstamos-600 text-white font-bold rounded-lg hover:bg-orange-500 transition whitespace-nowrap"
+                    className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-500 transition whitespace-nowrap"
                   >
                     <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
+
                   {/* BOTÓN SIGUIENTE */}
                   <button
                     onClick={() => {
@@ -447,6 +423,7 @@ export default function Home() {
                     <span className="text-xl">→</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
+
                   {/* Mensaje solo cuando es realmente el último */}
                   {games.length > 0 &&
                     games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
