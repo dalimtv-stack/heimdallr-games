@@ -3,18 +3,6 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import crypto from 'crypto';
 
-// FUNCIÓN PARA FILTRAR JUEGOS +18 (sin TypeScript)
-const filterAdultGames = (gamesList) => {
-  return gamesList.filter(game => {
-    const lowerTitle = game.title.toLowerCase();
-    const adultKeywords = [
-      'adult', 'hentai', 'nsfw', 'eroge', 'nude', 'sex', 'porn', 'koikatsu', 'nympho', 'fuck', 'cum',
-      'lust ', 'nymphomaniac'
-    ];
-    return !adultKeywords.some(keyword => lowerTitle.includes(keyword));
-  });
-};
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
@@ -40,15 +28,17 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // POPULARES DEL MES
+    // ==================== POPULARES DEL MES ====================
     if (tab === 'populares_mes') {
       const monthWidget = $('h2.widgettitle:contains("Most Popular Repacks of the Month")')
         .closest('.jetpack_top_posts_widget')
         .find('div.widget-grid-view-image');
 
       monthWidget.each((_, el) => {
-        const link = $(el).find('a').first();
-        const img = $(el).find('img').first();
+        const container = $(el);
+        const link = container.find('a').first();
+        const img = container.find('img').first();
+
         if (!link.length || !img.length) return;
 
         const postUrl = link.attr('href');
@@ -64,18 +54,20 @@ export async function GET(request) {
         games.push({ id, title, cover, postUrl });
       });
 
-      return NextResponse.json({ games: filterAdultGames(games), hasMore: false });
+      return NextResponse.json({ games, hasMore: false });
     }
 
-    // POPULARES DEL AÑO
+    // ==================== POPULARES DEL AÑO ====================
     if (tab === 'populares_ano') {
       const yearWidget = $('h2.widgettitle:contains("Top 150 Repacks of the Year")')
         .closest('.jetpack_top_posts_widget')
         .find('div.widget-grid-view-image');
 
       yearWidget.each((_, el) => {
-        const link = $(el).find('a').first();
-        const img = $(el).find('img').first();
+        const container = $(el);
+        const link = container.find('a').first();
+        const img = container.find('img').first();
+
         if (!link.length || !img.length) return;
 
         const postUrl = link.attr('href');
@@ -91,11 +83,12 @@ export async function GET(request) {
         games.push({ id, title, cover, postUrl });
       });
 
+      // Paginación del año (las páginas usan el mismo formato que novedades)
       const hasMore = $('.pagination .next').length > 0;
-      return NextResponse.json({ games: filterAdultGames(games), hasMore });
+      return NextResponse.json({ games, hasMore });
     }
 
-    // NOVEDADES + TODOS A-Z (código original)
+    // ==================== NOVEDADES + A-Z (código original) ====================
     $('article.post').each((_, el) => {
       const article = $(el);
       const link = article.find('h1.entry-title a, h2.entry-title a').first();
@@ -131,10 +124,10 @@ export async function GET(request) {
       hasMore = $('.pagination .next').length > 0;
     }
 
-    return NextResponse.json({ games: filterAdultGames(games), hasMore });
+    return NextResponse.json({ games, hasMore });
 
   } catch (err) {
-    console.error('Error en API games:', err.message);
+    console.error('Error en /api/games:', err.message);
     return NextResponse.json({ games: [], hasMore: false });
   }
 }
