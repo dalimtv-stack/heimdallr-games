@@ -259,17 +259,24 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Capturas reales (excluye la carátula principal) */}
+                {/* Capturas reales – SIN favicon, SIN carátula, SIN basura */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-4 text-center">Capturas del juego</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {selectedDetails.screenshots
-                        .filter(src => 
-                          src !== (selectedDetails.cover || selectedGame.cover) && 
-                          !src.includes('imageban.ru') &&  // a veces la carátula viene de aquí también
-                          !src.includes('/cover/')
-                        )
+                        .filter(src => {
+                          const lower = src.toLowerCase();
+                          return (
+                            src !== (selectedDetails.cover || selectedGame.cover) &&
+                            !lower.includes('icon-') &&
+                            !lower.includes('favicon') &&
+                            !lower.includes('cropped-icon') &&
+                            !lower.includes('192x192') &&
+                            !lower.includes('fitgirl-repacks.site/wp-content/uploads/2016/08') &&
+                            lower.includes('out/') // solo imágenes de imageban.ru que son las reales
+                          );
+                        })
                         .slice(0, 8)
                         .map((src, i) => (
                           <Image
