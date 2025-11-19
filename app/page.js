@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
 // ──────────────────────────────────────────────────────────────
-function MarkdownText({ text }) {
+function MarkdownText({ text }: { text: string | null }) {
   if (!text) return <p className="text-gray-500 italic">No hay descripción disponible.</p>;
 
   const parts = text.split(/(\*\*.*?\*\*)/g);
@@ -13,18 +14,15 @@ function MarkdownText({ text }) {
     <>
       {parts.map((part, i) => {
         if (part.startsWith('**') && part.endsWith('**')) {
-          // Texto en negrita → lo mostramos en amarillo y bold
           return (
             <span key={i} className="font-bold text-yellow-400">
               {part.slice(2, -2)}
             </span>
           );
         }
-
-        // Texto normal → dividimos por saltos de línea
         return part.split('\n').map((line, j, arr) => (
           <span key={`${i}-${j}`}>
-            {line || '\u00A0'} {/* \u00A0 = espacio en blanco no colapsable */}
+            {line || '\u00A0'}
             {j < arr.length - 1 && <br />}
           </span>
         ));
@@ -34,9 +32,9 @@ function MarkdownText({ text }) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Componente principal
+// Envío de magnet a qBittorrent
 // ──────────────────────────────────────────────────────────────
-async function sendMagnetToQB(magnet) {
+async function sendMagnetToQB(magnet: string) {
   try {
     const form = new FormData();
     form.append('urls', magnet);
@@ -49,22 +47,23 @@ async function sendMagnetToQB(magnet) {
     if (!res.ok) throw new Error('qBittorrent add failed');
     alert('Magnet enviado a qBittorrent');
   } catch (err) {
-    alert('Error enviando magnet: ' + err.message);
+    alert('Error enviando magnet: ' + (err as Error).message);
   }
 }
 
 export default function Home() {
-  const [games, setGames] = useState([]);
+  const [games, setGames] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [tab, setTab] = useState('novedades');
-  const [viewMode, setViewMode] = useState('list'); // 'list' o 'detail'
-  const [selectedGame, setSelectedGame] = useState(null);
-  const [selectedDetails, setSelectedDetails] = useState(null);
+  const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+  const [selectedGame, setSelectedGame] = useState<any>(null);
+  const [selectedDetails, setSelectedDetails] = useState<any>(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [nextGame, setNextGame] = useState<any>(null); // ← Nuevo estado
 
   const fetchGames = async (reset = false) => {
     setLoading(true);
@@ -72,7 +71,6 @@ export default function Home() {
     const params = new URLSearchParams();
     params.set('tab', tab);
     params.set('page', p);
-
     try {
       const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
@@ -97,24 +95,32 @@ export default function Home() {
     setSelectedGame(null);
     setSelectedDetails(null);
     setViewMode('list');
+    setNextGame(null);
     fetchGames(true);
   }, [tab]);
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     setSelectedGame(null);
     setSelectedDetails(null);
     setViewMode('list');
+    setNextGame(null);
     fetchGames(true);
   };
 
   const loadMore = () => fetchGames();
 
-  const handleSelect = async (game) => {
+  // ← handleSelect actualizado para calcular el siguiente juego
+  const handleSelect = async (game: any, currentList: any[] = games) => {
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
     setViewMode('detail');
+
+    const currentIndex = currentList.findIndex(g => g.id === game.id);
+    const next = currentList[currentIndex + 1] || null;
+    setNextGame(next);
+
     try {
       const res = await fetch(`/api/details?url=${encodeURIComponent(game.postUrl)}`);
       const data = await res.json();
@@ -131,6 +137,7 @@ export default function Home() {
     setSelectedGame(null);
     setSelectedDetails(null);
     setViewMode('list');
+    setNextGame(null);
     fetchGames(true);
   };
 
@@ -175,13 +182,15 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+        {/* LISTADO */}
         {viewMode === 'list' && (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
               {games.map((game) => (
                 <div key={game.id} className="space-y-4">
                   <div
-                    onClick={() => handleSelect(game)}
+                    onClick={() => handleSelect(game, games)}
                     className="cursor-pointer group transform hover:scale-105 transition-all duration-300"
                   >
                     <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
@@ -222,9 +231,9 @@ export default function Home() {
           </>
         )}
 
+        {/* DETALLE */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            {/* Botón arriba */}
             <button
               onClick={() => setViewMode('list')}
               className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
@@ -238,16 +247,17 @@ export default function Home() {
             {selectedDetails?.error && (
               <p className="text-center text-red-400">Error al cargar detalles</p>
             )}
+
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
-                {/* Título + Carátula (orden correcto y responsive) */}
+
+                {/* Título + Carátula */}
                 <div className="text-center space-y-6">
                   <h2 className="text-4xl md:text-5xl font-bold text-yellow-400 leading-tight">
                     {selectedDetails.title && !selectedDetails.title.includes('FitGirl Repacks')
                       ? selectedDetails.title
                       : selectedGame.title}
                   </h2>
-                  
                   <div className="flex justify-center">
                     <Image
                       src={selectedDetails.cover || selectedGame.cover}
@@ -260,7 +270,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Campos principales */}
+                {/* Info básica */}
                 <div className="text-sm space-y-2">
                   <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
                   <p><strong>Compañía:</strong> {selectedDetails.company || 'N/A'}</p>
@@ -269,38 +279,30 @@ export default function Home() {
                   <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
                   <p><strong>Tamaño de la instalación:</strong> {selectedDetails.installedSize || 'N/A'}</p>
 
-                  {/* Mirrors como lista */}
                   <div className="space-y-2">
                     <p className="font-bold">Download Mirrors:</p>
                     {selectedDetails.mirrors?.length > 0 ? (
                       <ul className="list-disc list-inside text-sm">
-                        {selectedDetails.mirrors.map((url, i) => (
+                        {selectedDetails.mirrors.map((url: string, i: number) => (
                           <li key={i}>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:underline break-all"
-                            >
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline break-all">
                               {url.startsWith('magnet:') ? 'Magnet Link' : url}
                             </a>
                           </li>
                         ))}
                       </ul>
-                    ) : (
-                      <p>N/A</p>
-                    )}
+                    ) : <p>N/A</p>}
                   </div>
                 </div>
 
-                {/* Capturas reales + Trailer (solo del bloque oficial) */}
+                {/* Capturas + Trailer */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
                       Capturas del juego
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {selectedDetails.screenshots.slice(0, 8).map((src, i) => (
+                      {selectedDetails.screenshots.slice(0, 8).map((src: string, i: number) => (
                         <Image
                           key={i}
                           src={src}
@@ -312,15 +314,14 @@ export default function Home() {
                         />
                       ))}
                     </div>
-                
-                    {/* Trailer si existe */}
+
                     {selectedDetails.trailerVideo && (
                       <div className="mt-8 max-w-4xl mx-auto">
                         <video
                           controls
                           preload="metadata"
                           className="w-full rounded-xl shadow-2xl border-4 border-yellow-500/30"
-                          poster={selectedDetails.screenshots[0]} // opcional: usa primera captura como poster
+                          poster={selectedDetails.screenshots[0]}
                         >
                           <source src={selectedDetails.trailerVideo} type="video/webm" />
                           Tu navegador no soporta video.
@@ -330,7 +331,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Secciones plegables con estilo clickable */}
+                {/* Repack Features */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
@@ -340,10 +341,13 @@ export default function Home() {
                     <span>{showRepack ? '▲' : '▼'}</span>
                   </button>
                   {showRepack && (
-                    <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg whitespace-pre-line">{selectedDetails.repackFeatures || 'N/A'}</p>
+                    <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg whitespace-pre-line">
+                      {selectedDetails.repackFeatures || 'N/A'}
+                    </p>
                   )}
                 </div>
 
+                {/* Información del juego */}
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
@@ -359,6 +363,7 @@ export default function Home() {
                   )}
                 </div>
 
+                {/* qBittorrent + Stats */}
                 {selectedDetails.csrinLink && (
                   <>
                     <button
@@ -367,7 +372,6 @@ export default function Home() {
                     >
                       Instalar en qBittorrent
                     </button>
-                    {/* Imagen torrent-stats solo abajo */}
                     {selectedDetails.torrentStatsImage && (
                       <Image
                         src={selectedDetails.torrentStatsImage}
@@ -381,13 +385,37 @@ export default function Home() {
                   </>
                 )}
 
-                {/* Botón abajo */}
-                <button
-                  onClick={() => setViewMode('list')}
-                  className="mt-8 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
-                >
-                  Volver al listado
-                </button>
+                {/* BOTONES FINALES – Responsive y con navegación */}
+                <div className="mt-8 flex flex-wrap gap-3 justify-start items-center">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className="flex items-center gap-2 px-5 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition whitespace-nowrap"
+                  >
+                    <span className="text-xl">←</span>
+                    <span className="hidden sm:inline">Volver al listado</span>
+                    <span className="sm:hidden">Volver</span>
+                  </button>
+
+                  {nextGame && (
+                    <button
+                      onClick={() => {
+                        handleSelect(nextGame, games);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition whitespace-nowrap"
+                    >
+                      <span className="hidden sm:inline">Siguiente juego</span>
+                      <span className="sm:hidden">Siguiente</span>
+                      <span className="text-xl">→</span>
+                    </button>
+                  )}
+
+                  {!nextGame && selectedGame && (
+                    <div className="text-gray-500 text-sm italic">
+                      Último juego de la lista
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
