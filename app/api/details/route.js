@@ -219,21 +219,28 @@ export async function GET(req) {
 	    )
 	  : null;
 
-    // Información del juego
-    const gameInfoRaw =
-      matchOne(html, [/Game Description\s*:?([\s\S]*?)(?=\s*(?:<b|<strong|<h2|<h3|Download Mirrors))/i]) ||
-      null;
-
-    const gameInfo = gameInfoRaw
-      ? decodeEntities(
-          gameInfoRaw
-            .replace(/^(Game Description\s*:?\s*)/i, '')
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/p>/gi, '\n')
-            .replace(/<[^>]+>/g, '')
-            .trim()
-        )
-      : null;
+    // Información del juego + Features + DLCs (bloque oficial de FitGirl)
+	const gameDescriptionRaw = matchOne(html, [
+	  /<div[^>]*class="su-spoiler-title"[^>]*>Game Description[\s\S]*?<div[^>]*class="su-spoiler-content[^>]*>([\s\S]*?)<\/div>/i,
+	  /Game Description[\s\S]*?<div[^>]*class="su-spoiler-content[^>]*>([\s\S]*?)<\/div>/i,
+	  />Game Description<\/div>\s*<div[^>]*class="su-spoiler-content[^>]*>([\s\S]*?)<\/div>/i
+	]);
+	
+	const gameInfo = gameDescriptionRaw
+	  ? decodeEntities(
+	      gameDescriptionRaw
+	        .replace(/<br\s*\/?>/gi, '\n')
+	        .replace(/<\/p>/gi, '\n\n')
+	        .replace(/<\/?(strong|b)[^>]*>/gi, '**')
+	        .replace(/<\/?ul[^>]*>/gi, '')
+	        .replace(/<\/?li[^>]*>/gi, '• ')
+	        .replace(/<[^>]+>/g, '')           // quita todo el HTML restante
+	        .replace(/\*\*/g, '**')            // limpia dobles
+	        .replace(/\n{3,}/g, '\n\n')        // máximo 2 saltos
+	        .replace(/^\s+|\s+$/g, '')
+	        .trim()
+	    )
+	  : null;
 
     return NextResponse.json({
       title: textOrNull(title),
