@@ -16,7 +16,6 @@ export async function GET(request) {
   };
 
   let url = base[tab] || base.novedades;
-
   if (page > 1 && tab !== 'todos_az') url += `page/${page}/`;
   if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
 
@@ -29,9 +28,8 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // POPULARES DEL MES → SOLO los 50 del widget "Most Popular Repacks of the Month"
+    // ==================== POPULARES DEL MES ====================
     if (tab === 'populares_mes') {
-      // Buscamos el título exacto y nos quedamos solo con los items que están dentro de ese widget
       const monthWidget = $('h2.widgettitle:contains("Most Popular Repacks of the Month")')
         .closest('.jetpack_top_posts_widget')
         .find('div.widget-grid-view-image');
@@ -50,9 +48,7 @@ export async function GET(request) {
         title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
 
         let cover = img.attr('src') || '';
-        if (cover.includes('?resize=')) {
-          cover = cover.split('?resize=')[0]; // imagen original, alta calidad
-        }
+        if (cover.includes('?resize=')) cover = cover.split('?resize=')[0];
 
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
         games.push({ id, title, cover, postUrl });
@@ -61,7 +57,38 @@ export async function GET(request) {
       return NextResponse.json({ games, hasMore: false });
     }
 
-    // TU CÓDIGO ORIGINAL (Novedades, Año, A-Z) → SIN TOCAR NADA
+    // ==================== POPULARES DEL AÑO ====================
+    if (tab === 'populares_ano') {
+      const yearWidget = $('h2.widgettitle:contains("Top 150 Repacks of the Year")')
+        .closest('.jetpack_top_posts_widget')
+        .find('div.widget-grid-view-image');
+
+      yearWidget.each((_, el) => {
+        const container = $(el);
+        const link = container.find('a').first();
+        const img = container.find('img').first();
+
+        if (!link.length || !img.length) return;
+
+        const postUrl = link.attr('href');
+        if (!postUrl?.includes('fitgirl-repacks.site')) return;
+
+        let title = link.attr('title') || img.attr('alt') || 'Unknown Game';
+        title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
+
+        let cover = img.attr('src') || '';
+        if (cover.includes('?resize=')) cover = cover.split('?resize=')[0];
+
+        const id = crypto.createHash('md5').update(postUrl).digest('hex');
+        games.push({ id, title, cover, postUrl });
+      });
+
+      // Paginación del año (las páginas usan el mismo formato que novedades)
+      const hasMore = $('.pagination .next').length > 0;
+      return NextResponse.json({ games, hasMore });
+    }
+
+    // ==================== NOVEDADES + A-Z (código original) ====================
     $('article.post').each((_, el) => {
       const article = $(el);
       const link = article.find('h1.entry-title a, h2.entry-title a').first();
@@ -100,7 +127,7 @@ export async function GET(request) {
     return NextResponse.json({ games, hasMore });
 
   } catch (err) {
-    console.error(err);
+    console.error('Error en /api/games:', err.message);
     return NextResponse.json({ games: [], hasMore: false });
   }
 }
