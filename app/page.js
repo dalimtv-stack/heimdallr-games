@@ -53,7 +53,7 @@ export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [tab, setTab] = useState('novedades');
   const [viewMode, setViewMode] = useState('list');
@@ -64,16 +64,27 @@ export default function Home() {
   const [nextGame, setNextGame] = useState(null);
 
   const fetchGames = async (reset = false) => {
+    // Si estamos en buscador y no hay texto → no hacer nada
+    if (tab === 'buscador' && !search.trim()) {
+      setGames([]);
+      setHasMore(false);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const p = reset ? 1 : page;
+
     const params = new URLSearchParams();
     params.set('tab', tab);
-    if (search && tab === 'buscador') params.set('search', search);
+    if (tab === 'buscador' && search.trim()) params.set('search', search.trim());
     params.set('page', p);
+
     try {
       const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
       const newGames = Array.isArray(data.games) ? data.games : [];
+
       if (reset) {
         setGames(newGames);
         setPage(2);
@@ -84,11 +95,14 @@ export default function Home() {
       setHasMore(data.hasMore);
     } catch (err) {
       console.error('Error cargando juegos:', err);
+      setGames([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   };
 
+  // Cambio de pestaña
   useEffect(() => {
     setGames([]);
     setPage(1);
@@ -97,17 +111,42 @@ export default function Home() {
     setSelectedDetails(null);
     setViewMode('list');
     setNextGame(null);
-    setLoading(true);
-    fetchGames(true);
-  }, [tab, search]);
+
+    if (tab !== 'buscador') {
+      setLoading(true);
+      fetchGames(true);
+    } else {
+      // En buscador: vacío hasta que escriba
+      setLoading(false);
+      if (search.trim()) fetchGames(true);
+    }
+  }, [tab]);
+
+  // Búsqueda automática al escribir (con debounce)
+  useEffect(() => {
+    if (tab !== 'buscador') return;
+
+    const timer = setTimeout(() => {
+      setPage(1);
+      setGames([]);
+      if (search.trim()) {
+        setLoading(true);
+        fetchGames(true);
+      } else {
+        setGames([]);
+        setHasMore(false);
+        setLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [search, tab]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    setSelectedGame(null);
-    setSelectedDetails(null);
-    setViewMode('list');
-    setNextGame(null);
+    setGames([]);
+    setLoading(true);
     fetchGames(true);
   };
 
@@ -133,6 +172,7 @@ export default function Home() {
     setSearch('');
     setTab('novedades');
     setPage(1);
+    setGames([]);
     setSelectedGame(null);
     setSelectedDetails(null);
     setViewMode('list');
@@ -172,7 +212,7 @@ export default function Home() {
           ))}
         </div>
 
-        {/* BUSCADOR SOLO CUANDO ESTÁ EN LA PESTAÑA "BUSCADOR" */}
+        {/* BUSCADOR SOLO EN SU PESTAÑA */}
         {tab === 'buscador' && viewMode === 'list' && (
           <div className="max-w-2xl mx-auto mb-12 px-4">
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
@@ -180,24 +220,40 @@ export default function Home() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar juegos en todo el sitio..."
+                placeholder="Escribe el nombre del juego y pulsa Enter..."
                 className="flex-1 px-6 py-4 bg-gray-800 rounded-xl text-lg focus:outline-none focus:ring-4 focus:ring-yellow-500/50"
                 autoFocus
               />
               <button
                 type="submit"
-                className="px-10 py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition"
+                disabled={!search.trim()}
+                className="px-10 py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 disabled:bg-gray-700 disabled:cursor-not-allowed transition"
               >
                 Buscar
               </button>
             </form>
+
+            {/* Mensajes de estado */}
+            {!search.trim() && !loading && (
+              <div className="text-center mt-20 text-gray-400">
+                <p className="text-3xl">Escribe el nombre del juego arriba</p>
+                <p className="text-xl mt-4">Ej: GTA, Cyberpunk, War, Resident Evil...</p>
+              </div>
+            )}
+
+            {search.trim() && !loading && games.length === 0 && (
+              <div className="text-center mt-20 text-gray-400">
+                <p className="text-3xl">No se encontraron resultados para</p>
+                <p className="text-2xl mt-4 text-yellow-400">"{search}"</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* LISTADO */}
         {viewMode === 'list' && (
           <>
-            {/* MODO A-Z → solo texto */}
+            {/* TODOS (A-Z) */}
             {tab === 'todos_az' ? (
               <div className="max-w-4xl mx-auto">
                 <div className="space-y-3">
@@ -219,18 +275,14 @@ export default function Home() {
                 )}
                 {hasMore && games.length > 0 && (
                   <div className="text-center mt-16">
-                    <button
-                      onClick={loadMore}
-                      disabled={loading}
-                      className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
-                    >
+                    <button onClick={loadMore} disabled={loading} className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50">
                       {loading ? 'Cargando...' : 'Cargar más juegos'}
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              /* MODO NORMAL CON PORTADAS */
+              /* MODO NORMAL CON PORTADAS (todas las pestañas excepto A-Z) */
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
                   {games.map((game) => (
@@ -259,16 +311,13 @@ export default function Home() {
                   ))}
                 </div>
 
-                {loading && games.length === 0 && (
+                {loading && games.length === 0 && tab !== 'buscador' && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
+
                 {hasMore && games.length > 0 && (
                   <div className="text-center mt-16">
-                    <button
-                      onClick={loadMore}
-                      disabled={loading}
-                      className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
-                    >
+                    <button onClick={loadMore} disabled={loading} className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50">
                       {loading ? 'Cargando...' : 'Cargar más'}
                     </button>
                   </div>
@@ -278,21 +327,14 @@ export default function Home() {
           </>
         )}
 
-        {/* DETALLE DEL JUEGO (100 % IGUAL QUE ANTES) */}
+        {/* DETALLE DEL JUEGO – 100 % IGUAL QUE ANTES */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            <button
-              onClick={() => setViewMode('list')}
-              className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
-            >
+            <button onClick={() => setViewMode('list')} className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
               Volver al listado
             </button>
-            {selectedDetails?.loading && (
-              <p className="text-center text-yellow-400">Cargando detalles...</p>
-            )}
-            {selectedDetails?.error && (
-              <p className="text-center text-red-400">Error al cargar detalles</p>
-            )}
+            {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
+            {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
                 <div className="text-center space-y-6">
@@ -370,7 +412,7 @@ export default function Home() {
                     className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                   >
                     Características del repack
-                    <span>{showRepack ? '▲' : '▼'}</span>
+                    <span>{showRepack ? 'Up' : 'Down'}</span>
                   </button>
                   {showRepack && (
                     <p className="mt-2 text-sm bg-gray-900 p-4 rounded-lg whitespace-pre-line">
@@ -384,7 +426,7 @@ export default function Home() {
                     className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                   >
                     Información del juego
-                    <span>{showInfo ? '▲' : '▼'}</span>
+                    <span>{showInfo ? 'Up' : 'Down'}</span>
                   </button>
                   {showInfo && (
                     <div className="mt-2 text-sm bg-gray-900 p-6 rounded-lg leading-relaxed text-gray-200">
@@ -426,7 +468,7 @@ export default function Home() {
                     }}
                     className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-500 transition whitespace-nowrap"
                   >
-                    <span className="text-xl">←</span>
+                    <span className="text-xl">Left</span>
                     <span>Atrás</span>
                   </button>
                   <button
@@ -442,7 +484,7 @@ export default function Home() {
                     className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
                   >
                     <span>Siguiente</span>
-                    <span className="text-xl">→</span>
+                    <span className="text-xl">Right</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
                   {games.length > 0 &&
