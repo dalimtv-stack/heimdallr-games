@@ -29,33 +29,24 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // AÑADIDO: Caso especial para Populares del mes (estructura grid con portadas)
+    // POPULARES DEL MES → extracción simple de enlaces directos (sin imágenes)
     if (tab === 'populares_mes') {
-      // Busca el contenedor de la grid y extrae cada item
-      $('.popular-repacks-grid, .pop-repacks-grid, .pop-repack-item').each((_, el) => {
-        const item = $(el);
-        const link = item.find('a[href*="/"]').first();
-        if (!link.length) return;
-
-        const postUrl = link.attr('href') || '';
-        if (!postUrl) return;
-
-        let title = link.attr('title') || link.text().trim() || 'Unknown Game';
-        title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
-
-        // Portada real de la grid
-        let cover = item.find('img').attr('src') || item.find('img').attr('data-src') || '';
-        if (cover && !cover.startsWith('http')) {
-          cover = 'https://fitgirl-repacks.site' + cover;
-        }
-        if (!cover) {
-          cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
-        }
-
+      $('a[href*="/"]').each((_, el) => {
+        const link = $(el);
+        const postUrl = link.attr('href');
+        if (!postUrl || !postUrl.includes('fitgirl-repacks.site')) return;
+    
+        // Título: del slug del URL o texto del link
+        let title = link.text().trim() || postUrl.split('/').pop() || 'Unknown Game';
+        title = title.replace(/–\s*FitGirl Repack.*/i, '').replace(/-/g, ' ').trim();
+    
+        // Cover: placeholder (esta página no tiene imágenes, se carga en details)
+        const cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
+    
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
         games.push({ id, title, cover, postUrl });
       });
-
+    
       // No tiene paginación → siempre 50 juegos
       return NextResponse.json({ games, hasMore: false });
     }
