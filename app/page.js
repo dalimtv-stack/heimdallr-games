@@ -63,8 +63,24 @@ export default function Home() {
   const [showInfo, setShowInfo] = useState(false);
   const [nextGame, setNextGame] = useState(null);
 
+  // NUEVO: Carga la portada real desde el post del juego (solo en buscador)
+  const fetchRealCover = async (game) => {
+    if (tab !== 'buscador' || game.cover) return;
+
+    try {
+      const res = await fetch(`/api/details?url=${encodeURIComponent(game.postUrl)}`);
+      const data = await res.json();
+      if (data.cover) {
+        setGames(prev => prev.map(g => 
+          g.id === game.id ? { ...g, cover: data.cover } : g
+        ));
+      }
+    } catch (err) {
+      console.log('No se pudo cargar portada para:', game.title);
+    }
+  };
+
   const fetchGames = async (reset = false) => {
-    // Si estamos en buscador y no hay texto → no cargar nada
     if (tab === 'buscador' && !search.trim()) {
       setGames([]);
       setHasMore(false);
@@ -74,6 +90,7 @@ export default function Home() {
 
     setLoading(true);
     const p = reset ? 1 : page;
+
     const params = new URLSearchParams();
     params.set('tab', tab);
     if (search && tab === 'buscador') params.set('search', search.trim());
@@ -92,6 +109,14 @@ export default function Home() {
         setPage(p + 1);
       }
       setHasMore(data.hasMore);
+
+      // En el buscador: cargar portadas reales una vez cargada la lista
+      if (tab === 'buscador' && reset) {
+        newGames.forEach((game, index) => {
+          setTimeout(() => fetchRealCover(game), index * 350); // suave y sin saturar
+        });
+      }
+
     } catch (err) {
       console.error('Error cargando juegos:', err);
     } finally {
@@ -99,7 +124,6 @@ export default function Home() {
     }
   };
 
-  // Cambio de pestaña
   useEffect(() => {
     setGames([]);
     setPage(1);
@@ -108,35 +132,9 @@ export default function Home() {
     setSelectedDetails(null);
     setViewMode('list');
     setNextGame(null);
-
-    if (tab !== 'buscador') {
-      setLoading(true);
-      fetchGames(true);
-    } else {
-      setLoading(false);
-      if (search.trim()) fetchGames(true);
-    }
-  }, [tab]);
-
-  // Búsqueda en tiempo real (solo en la pestaña Buscador)
-  useEffect(() => {
-    if (tab !== 'buscador') return;
-
-    const timer = setTimeout(() => {
-      setPage(1);
-      setGames([]);
-      if (search.trim()) {
-        setLoading(true);
-        fetchGames(true);
-      } else {
-        setGames([]);
-        setHasMore(false);
-        setLoading(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [search, tab]);
+    setLoading(true);
+    fetchGames(true);
+  }, [tab, search]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -223,26 +221,11 @@ export default function Home() {
               />
               <button
                 type="submit"
-                disabled={!search.trim()}
-                className="px-10 py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 disabled:bg-gray-700 disabled:cursor-not-allowed transition"
+                className="px-10 py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition"
               >
                 Buscar
               </button>
             </form>
-
-            {!search.trim() && !loading && (
-              <div className="text-center mt-20 text-gray-400">
-                <p className="text-3xl">Escribe el nombre del juego arriba</p>
-                <p className="text-xl mt-4">Ej: GTA, Cyberpunk, War, Resident Evil...</p>
-              </div>
-            )}
-
-            {search.trim() && !loading && games.length === 0 && (
-              <div className="text-center mt-20 text-gray-400">
-                <p className="text-3xl">No se encontraron resultados para</p>
-                <p className="text-2xl mt-4 text-yellow-400">"{search}"</p>
-              </div>
-            )}
           </div>
         )}
 
@@ -265,7 +248,6 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
@@ -293,12 +275,7 @@ export default function Home() {
                       >
                         <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
                           <Image
-                            src={
-                              game.cover ||
-                              `https://via.placeholder.com/300x450/222/fff?text=${encodeURIComponent(
-                                game.title.slice(0, 20)
-                              )}`
-                            }
+                            src={game.cover || '/placeholder-cover.jpg'}
                             alt={game.title}
                             width={300}
                             height={450}
@@ -316,7 +293,7 @@ export default function Home() {
                   ))}
                 </div>
 
-                {loading && games.length === 0 && tab !== 'buscador' && (
+                {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
 
@@ -475,7 +452,6 @@ export default function Home() {
                   </>
                 )}
 
-                {/* NAVEGACIÓN CORREGIDA */}
                 <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
                   <button
                     onClick={() => {
