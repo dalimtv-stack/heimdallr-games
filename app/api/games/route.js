@@ -16,6 +16,7 @@ export async function GET(request) {
   };
 
   let url = base[tab] || base.novedades;
+
   if (page > 1 && tab !== 'todos_az') url += `page/${page}/`;
   if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
 
@@ -24,10 +25,40 @@ export async function GET(request) {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 20000,
     });
-    const $ = cheerio.load(data);
 
+    const $ = cheerio.load(data);
     const games = [];
 
+    // CASO ESPECIAL: Populares del mes (estructura distinta, con portadas reales)
+    if (tab === 'populares_mes') {
+      $('div.pop-repack-item').each((_, el) => {
+        const item = $(el);
+        const link = item.find('a').first();
+        if (!link.length) return;
+
+        const postUrl = link.attr('href');
+        if (!postUrl) return;
+
+        let title = link.attr('title') || link.text().trim() || 'Unknown';
+        title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
+
+        let cover = item.find('img').attr('src') || item.find('img').attr('data-src') || '';
+        if (cover && !cover.startsWith('http')) {
+          cover = 'https://fitgirl-repacks.site' + cover;
+        }
+        if (!cover) {
+          cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
+        }
+
+        const id = crypto.createHash('md5').update(postUrl).digest('hex');
+        games.push({ id, title, cover, postUrl });
+      });
+
+      // No tiene paginación → siempre false
+      return NextResponse.json({ games, hasMore: false });
+    }
+
+    // RESTO DE PESTAÑAS: tu código 100% original (sin tocar nada)
     $('article.post').each((_, el) => {
       const article = $(el);
       const link = article.find('h1.entry-title a, h2.entry-title a').first();
@@ -38,6 +69,7 @@ export async function GET(request) {
 
       const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
       const postUrl = link.attr('href') || '';
+
       const id = postUrl
         ? crypto.createHash('md5').update(postUrl).digest('hex')
         : Date.now().toString();
@@ -63,6 +95,7 @@ export async function GET(request) {
     }
 
     return NextResponse.json({ games, hasMore });
+
   } catch (err) {
     console.error(err);
     return NextResponse.json({ games: [], hasMore: false });
