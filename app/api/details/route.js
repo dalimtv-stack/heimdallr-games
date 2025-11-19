@@ -174,18 +174,28 @@ export async function GET(req) {
       mirrors.find((m) => m.startsWith('magnet:')) ||
       null;
 
-    // Screenshots
-    const allImages = [
-      ...new Set([
-        ...matchAll(html, /<img[^>]*src="(https?:\/\/[^"]+)"[^>]*>/i),
-        ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+\.(?:jpg|png))"[^>]*>/i),
-      ]),
-    ];
-
-    const screenshots = allImages
-      .filter((url) => !/torrent-stats\.info/i.test(url))
-      .filter((url) => /(screens?|ss|shot|gallery|cdn|images)/i.test(url) || /\.(jpg|png)$/i.test(url))
-      .slice(0, 8);
+    // ── Screenshots reales + Video (solo lo que está bajo el <h3>Screenshots...</h3>)
+	const screenshotsSection = matchOne(html, [
+	  /<h3[^>]*>Screenshots\s*\(Click to enlarge\)\s*<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,
+	  /<h3[^>]*>Screenshots\s*\(Click to enlarge\)\s*<\/h3>[\s\S]*?(?=<h3|Repack Features|Game Features)/i
+	]);
+	
+	let screenshots = [];
+	let trailerVideo = null;
+	
+	if (screenshotsSection) {
+	  // Extraer imágenes
+	  const imgMatches = screenshotsSection.matchAll(/src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp))"/gi);
+	  for (const m of imgMatches) {
+	    if (m[1]) screenshots.push(m[1]);
+	  }
+	
+	  // Extraer video (si existe)
+	  const videoMatch = screenshotsSection.match(/<source[^>]+src="(https?:\/\/[^"]+\.webm)"/i);
+	  if (videoMatch?.[1]) {
+	    trailerVideo = videoMatch[1];
+	  }
+	}
 
     // Torrent-stats
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
@@ -236,6 +246,7 @@ export async function GET(req) {
       installedSize: textOrNull(installedSize),
       mirrors,
       screenshots,
+      trailerVideo,
       repackFeatures,
       gameInfo,
       csrinLink,
