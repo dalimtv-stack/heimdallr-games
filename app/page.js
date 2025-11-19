@@ -231,34 +231,34 @@ export default function Home() {
 
         {/* LISTADO */}
         {viewMode === 'list' && (
-          <>
-            {/* MODO A-Z → solo texto */}
-            {tab === 'todos_az' ? (
-              <div className="max-w-4xl mx-auto">
-                <div className="space-y-3">
-                  {games.map((game) => (
-                    <div
-                      key={game.id}
-                      onClick={() => handleSelect(game, games)}
-                      className="group cursor-pointer bg-gray-800/60 hover:bg-gray-700 rounded-xl p-6 transition-all duration-200 border border-gray-700 hover:border-yellow-500/60 shadow-lg hover:shadow-yellow-500/10"
-                    >
-                      <h3 className="text-2xl font-bold text-yellow-400 group-hover:text-yellow-300 transition">
-                        {game.title}
-                      </h3>
-                    </div>
-                  ))}
-                </div>
-                {loading && games.length === 0 && (
-                  <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
-                )}
-                {hasMore && games.length > 0 && (
-                  <div className="text-center mt-16">
-                    <button
-                      onClick={loadMore}
-                      disabled={loading}
-                      className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
-                    >
-                      {loading ? 'Cargando...' : 'Cargar más juegos'}
+        <>
+          {/* MODO A-Z → solo texto */}
+          {(tab === 'todos_az' || tab === 'buscador') ? (
+            <div className="max-w-4xl mx-auto">
+              <div className="space-y-3">
+                {games.map((game) => (
+                  <div
+                    key={game.id}
+                    onClick={() => handleSelect(game, games)}
+                    className="group cursor-pointer bg-gray-800/60 hover:bg-gray-700 rounded-xl p-6 transition-all duration-200 border border-gray-700 hover:border-yellow-500/60 shadow-lg hover:shadow-yellow-500/10"
+                  >
+                    <h3 className="text-2xl font-bold text-yellow-400 group-hover:text-yellow-300 transition">
+                      {game.title}
+                    </h3>
+                  </div>
+                ))}
+              </div>
+              {loading && games.length === 0 && (
+                <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
+              )}
+              {hasMore && games.length > 0 && (
+                <div className="text-center mt-16">
+                  <button
+                    onClick={loadMore}
+                    disabled={loading}
+                    className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50"
+                  >
+                    {loading ? 'Cargando...' : 'Cargar más juegos'}
                     </button>
                   </div>
                 )}
