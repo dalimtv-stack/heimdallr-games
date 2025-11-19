@@ -29,44 +29,44 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
-    // POPULARES DEL MES → selector CORRECTO y FUNCIONANDO 100% ahora mismo
+    // AÑADIDO: Caso especial para Populares del mes (estructura grid con portadas)
     if (tab === 'populares_mes') {
-      $('.pop-repack-item').each((_, el) => {  // ← este es el class real
+      // Busca el contenedor de la grid y extrae cada item
+      $('.popular-repacks-grid, .pop-repacks-grid, .pop-repack-item').each((_, el) => {
         const item = $(el);
-        const link = item.find('a').first();
+        const link = item.find('a[href*="/"]').first();
         if (!link.length) return;
 
-        const postUrl = link.attr('href');
-        if (!postUrl || !postUrl.includes('fitgirl-repacks.site')) return;
+        const postUrl = link.attr('href') || '';
+        if (!postUrl) return;
 
-        let title = link.attr('title') || item.find('img').attr('alt') || 'Unknown Game';
+        let title = link.attr('title') || link.text().trim() || 'Unknown Game';
         title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
 
-        // Portada real
+        // Portada real de la grid
         let cover = item.find('img').attr('src') || item.find('img').attr('data-src') || '';
-        if (cover) {
-          if (cover.startsWith('//')) cover = 'https:' + cover;
-          if (cover.startsWith('/')) cover = 'https://fitgirl-repacks.site' + cover;
+        if (cover && !cover.startsWith('http')) {
+          cover = 'https://fitgirl-repacks.site' + cover;
         }
         if (!cover) {
-          cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0,20));
+          cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
         }
 
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
         games.push({ id, title, cover, postUrl });
       });
 
-      // Esta página nunca tiene paginación → 50 juegos y se acabó
+      // No tiene paginación → siempre 50 juegos
       return NextResponse.json({ games, hasMore: false });
     }
 
-    // RESTO DE PESTAÑAS → tu código original, sin tocar
+    // TU CÓDIGO ORIGINAL SIN TOCAR (para novedades, año, A-Z, etc.)
     $('article.post').each((_, el) => {
       const article = $(el);
       const link = article.find('h1.entry-title a, h2.entry-title a').first();
       if (!link.length) return;
 
-      const rawTitle = link.text().text().trim();
+      const rawTitle = link.text().trim();
       if (/upcoming|digest/i.test(rawTitle)) return;
 
       const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
@@ -83,7 +83,7 @@ export async function GET(request) {
         if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
       }
       if (!cover) {
-        cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0,15));
+        cover = 'https://via.placeholder.com/300x450/222/fff?text=' + encodeURIComponent(title.slice(0, 15));
       }
 
       games.push({ id, title, cover, postUrl });
@@ -99,7 +99,7 @@ export async function GET(request) {
     return NextResponse.json({ games, hasMore });
 
   } catch (err) {
-    console.error('Error en /api/games:', err.message);
+    console.error(err);
     return NextResponse.json({ games: [], hasMore: false });
   }
 }
