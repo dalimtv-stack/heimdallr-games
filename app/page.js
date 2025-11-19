@@ -12,15 +12,17 @@ function MarkdownText({ text }) {
     <>
       {parts.map((part, i) => {
         if (part.startsWith('**') && part.endsWith('**')) {
+          // Texto en negrita → lo mostramos en amarillo y bold
           return (
             <span key={i} className="font-bold text-yellow-400">
               {part.slice(2, -2)}
             </span>
           );
         }
+        // Texto normal → dividimos por saltos de línea
         return part.split('\n').map((line, j, arr) => (
           <span key={`${i}-${j}`}>
-            {line || '\u00A0'}
+            {line || '\u00A0'} {/* \u00A0 = espacio en blanco no colapsable */}
             {j < arr.length - 1 && <br />}
           </span>
         ));
@@ -56,51 +58,23 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [tab, setTab] = useState('novedades');
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState('list'); // 'list' o 'detail'
   const [selectedGame, setSelectedGame] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [nextGame, setNextGame] = useState(null);
-
-  // NUEVO: Carga la portada real desde el post del juego (solo en buscador)
-  const fetchRealCover = async (game) => {
-    if (tab !== 'buscador' || game.cover) return;
-
-    try {
-      const res = await fetch(`/api/details?url=${encodeURIComponent(game.postUrl)}`);
-      const data = await res.json();
-      if (data.cover) {
-        setGames(prev => prev.map(g => 
-          g.id === game.id ? { ...g, cover: data.cover } : g
-        ));
-      }
-    } catch (err) {
-      console.log('No se pudo cargar portada para:', game.title);
-    }
-  };
+  const [nextGame, setNextGame] = useState(null); // ← nuevo estado para "Siguiente juego"
 
   const fetchGames = async (reset = false) => {
-    if (tab === 'buscador' && !search.trim()) {
-      setGames([]);
-      setHasMore(false);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     const p = reset ? 1 : page;
-
     const params = new URLSearchParams();
     params.set('tab', tab);
-    if (search && tab === 'buscador') params.set('search', search.trim());
     params.set('page', p);
-
     try {
       const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
       const newGames = Array.isArray(data.games) ? data.games : [];
-
       if (reset) {
         setGames(newGames);
         setPage(2);
@@ -109,14 +83,6 @@ export default function Home() {
         setPage(p + 1);
       }
       setHasMore(data.hasMore);
-
-      // En el buscador: cargar portadas reales una vez cargada la lista
-      if (tab === 'buscador' && reset) {
-        newGames.forEach((game, index) => {
-          setTimeout(() => fetchRealCover(game), index * 350); // suave y sin saturar
-        });
-      }
-
     } catch (err) {
       console.error('Error cargando juegos:', err);
     } finally {
@@ -125,16 +91,27 @@ export default function Home() {
   };
 
   useEffect(() => {
-    setGames([]);
-    setPage(1);
-    setHasMore(true);
-    setSelectedGame(null);
+    // FIX: al cambiar pestaña → limpia todo y muestra "Cargando juegos..."
+    setGames([]); // ← limpia la grid
+    setPage(1); // ← reinicia página
+    setHasMore(true); // ← asume que puede haber más
+    setSelectedGame(null); // ← cierra detalle si estaba abierto
     setSelectedDetails(null);
     setViewMode('list');
     setNextGame(null);
-    setLoading(true);
-    fetchGames(true);
-  }, [tab, search]);
+    setLoading(true); // ← IMPORTANTE: fuerza el mensaje "Cargando juegos..."
+    fetchGames(true); // ← recarga desde página 1
+  }, [tab]);
+
+  // Precarga automática cuando llegamos al último juego visible
+  useEffect(() => {
+    if (selectedGame && viewMode === 'detail' && games.length > 0) {
+      const currentIndex = games.findIndex(g => g.id === selectedGame.id);
+      if (currentIndex === games.length - 1 && hasMore && !loading) {
+        fetchGames(); // carga siguiente página en segundo plano
+      }
+    }
+  }, [selectedGame, games.length, hasMore, loading, viewMode]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -232,8 +209,8 @@ export default function Home() {
         {/* LISTADO */}
         {viewMode === 'list' && (
           <>
-            {/* MODO A-Z → solo texto */}
-            {tab === 'todos_az' ? (
+            {/* MODO TEXTO BONITO: Todos (A-Z) + Buscador */}
+            {(tab === 'todos_az' || tab === 'buscador') ? (
               <div className="max-w-4xl mx-auto">
                 <div className="space-y-3">
                   {games.map((game) => (
@@ -248,6 +225,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
@@ -264,7 +242,7 @@ export default function Home() {
                 )}
               </div>
             ) : (
-              /* MODO NORMAL CON PORTADAS */
+              /* MODO NORMAL CON PORTADAS (novedades, populares) */
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
                   {games.map((game) => (
@@ -275,7 +253,7 @@ export default function Home() {
                       >
                         <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
                           <Image
-                            src={game.cover || '/placeholder-cover.jpg'}
+                            src={game.cover}
                             alt={game.title}
                             width={300}
                             height={450}
@@ -296,7 +274,6 @@ export default function Home() {
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
-
                 {hasMore && games.length > 0 && (
                   <div className="text-center mt-16">
                     <button
@@ -316,6 +293,7 @@ export default function Home() {
         {/* DETALLE DEL JUEGO (100 % IGUAL QUE ANTES) */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
+            {/* Botón arriba */}
             <button
               onClick={() => setViewMode('list')}
               className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg"
@@ -330,6 +308,7 @@ export default function Home() {
             )}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
               <div className="space-y-6">
+                {/* Título + Carátula (orden correcto y responsive) */}
                 <div className="text-center space-y-6">
                   <h2 className="text-4xl md:text-5xl font-bold text-yellow-400 leading-tight">
                     {selectedDetails.title && !selectedDetails.title.includes('FitGirl Repacks')
@@ -347,6 +326,7 @@ export default function Home() {
                     />
                   </div>
                 </div>
+                {/* Campos principales */}
                 <div className="text-sm space-y-2">
                   <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
                   <p><strong>Compañía:</strong> {selectedDetails.company || 'N/A'}</p>
@@ -354,13 +334,19 @@ export default function Home() {
                   <p><strong>Tamaño Original:</strong> {selectedDetails.originalSize || 'N/A'}</p>
                   <p><strong>Tamaño del Repack:</strong> {selectedDetails.repackSize || 'N/A'}</p>
                   <p><strong>Tamaño de la instalación:</strong> {selectedDetails.installedSize || 'N/A'}</p>
+                  {/* Mirrors como lista */}
                   <div className="space-y-2">
                     <p className="font-bold">Download Mirrors:</p>
                     {selectedDetails.mirrors?.length > 0 ? (
                       <ul className="list-disc list-inside text-sm">
                         {selectedDetails.mirrors.map((url, i) => (
                           <li key={i}>
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline break-all">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:underline break-all"
+                            >
                               {url.startsWith('magnet:') ? 'Magnet Link' : url}
                             </a>
                           </li>
@@ -371,7 +357,7 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-
+                {/* Capturas reales + Trailer (solo del bloque oficial) */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
@@ -390,9 +376,15 @@ export default function Home() {
                         />
                       ))}
                     </div>
+                    {/* Trailer si existe */}
                     {selectedDetails.trailerVideo && (
                       <div className="mt-8 max-w-4xl mx-auto">
-                        <video controls preload="metadata" className="w-full rounded-xl shadow-2xl border-4 border-yellow-500/30" poster={selectedDetails.screenshots[0]}>
+                        <video
+                          controls
+                          preload="metadata"
+                          className="w-full rounded-xl shadow-2xl border-4 border-yellow-500/30"
+                          poster={selectedDetails.screenshots[0]}
+                        >
                           <source src={selectedDetails.trailerVideo} type="video/webm" />
                           Tu navegador no soporta video.
                         </video>
@@ -400,7 +392,7 @@ export default function Home() {
                     )}
                   </div>
                 )}
-
+                {/* Secciones plegables con estilo clickable */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
@@ -415,7 +407,6 @@ export default function Home() {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
@@ -430,7 +421,6 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-
                 {selectedDetails.csrinLink && (
                   <>
                     <button
@@ -439,6 +429,7 @@ export default function Home() {
                     >
                       Instalar en qBittorrent
                     </button>
+                    {/* Imagen torrent-stats solo abajo */}
                     {selectedDetails.torrentStatsImage && (
                       <Image
                         src={selectedDetails.torrentStatsImage}
@@ -451,8 +442,9 @@ export default function Home() {
                     )}
                   </>
                 )}
-
+                {/* NAVEGACIÓN FINAL – PERFECTA, SIN ERRORES */}
                 <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
+                  {/* BOTÓN ATRÁS */}
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -469,6 +461,7 @@ export default function Home() {
                     <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
+                  {/* BOTÓN SIGUIENTE */}
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -485,6 +478,7 @@ export default function Home() {
                     <span className="text-xl">→</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
+                  {/* Mensaje solo cuando es realmente el último */}
                   {games.length > 0 &&
                     games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
                     !hasMore && (
