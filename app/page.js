@@ -440,7 +440,7 @@ export default function Home() {
                       className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                     >
                       Actualizaciones del juego
-                      <span className="text-2xl">{showUpdates ? 'Up' : 'Down'}</span>
+                      <span className="text-2xl">{showUpdates ? '▲' : '▼'}</span>
                     </button>
                 
                     {showUpdates && (
