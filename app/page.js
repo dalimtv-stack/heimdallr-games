@@ -597,6 +597,18 @@ export default function Home() {
                       </div>
                     )}
                 </div>
+                {/* ENLACE A LA FUENTE ORIGINAL (nuevo) */}
+                <div className="text-center">
+                  <span className="text-gray-400 text-sm mr-2">Fuente:</span>
+                  <a
+                    href={selectedGame.postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-yellow-400 hover:text-yellow-300 underline font-medium break-all"
+                  >
+                    {selectedGame.postUrl.replace('https://', '')}
+                  </a>
+                </div>
               </div>
             )}
           </div>
