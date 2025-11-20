@@ -432,7 +432,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* === ACTUALIZACIONES (enlaces 100 % funcionales) === */}
+                {/* === ACTUALIZACIONES – VERSIÓN FINAL, SIMPLE Y PERFECTA === */}
                 {selectedDetails.updatesHtml && (
                   <div className="mt-6">
                     <button
@@ -440,23 +440,21 @@ export default function Home() {
                       className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                     >
                       Actualizaciones del juego
-                      <span className="text-xl">{showUpdates ? 'Up' : 'Down'}</span>
+                      <span className="text-2xl">{showUpdates ? 'Up' : 'Down'}</span>
                     </button>
                 
                     {showUpdates && (
-                      <div className="mt-2 bg-gray-900/80 border border-green-600/40 rounded-lg p-6 text-sm leading-relaxed text-gray-200">
+                      <div className="mt-2 bg-gray-900/80 border border-green-600/40 rounded-lg p-6 text-sm leading-relaxed text-gray-200 overflow-x-auto">
                         <div
-                          className="prose prose-invert max-w-none [&_a]:text-yellow-400 [&_a]:underline [&_a]:hover:text-yellow-300 [&_ol]:pl-6 [&_li]:mb-2"
+                          className="whitespace-normal break-words"
                           dangerouslySetInnerHTML={{
                             __html: selectedDetails.updatesHtml
-                              // 1. Quitamos el <h3> original (no queremos repetirlo)
+                              // 1. Quitamos el <h3> original para que no se repita
                               .replace(/<h3[^>]*>Game Updates[^<]*<\/h3>/gi, '')
-                              // 2. Quitamos estilos inline que rompen el layout
+                              // 2. Quitamos TODOS los style="" (eran los que rompían todo)
                               .replace(/style="[^"]*"/gi, '')
-                              // 3. Añadimos clases Tailwind para que todo se vea bonito y se adapte al ancho
-                              .replace(/<div[^>]*>/gi, '<div class="mb-6">')
-                              .replace(/<a /gi, '<a class="text-yellow-400 hover:text-yellow-300 underline font-medium" ')
-                              .replace(/<br\s*\/?>/gi, '<br class="my-2" />')
+                              // 3. Forzamos que los enlaces se vean bien
+                              .replace(/<a /gi, '<a class="text-yellow-400 hover:text-yellow-300 underline" ')
                           }}
                         />
                       </div>
