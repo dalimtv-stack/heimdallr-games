@@ -448,7 +448,7 @@ export default function Home() {
                       return (
                         <>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {selectedDetails.screenshots.slice(0, 8).map((src, i) => (
+                            {selectedDetails.screenshots.slice(0, 16).map((src, i) => (
                               <div
                                 key={i}
                                 className="cursor-zoom-in"
