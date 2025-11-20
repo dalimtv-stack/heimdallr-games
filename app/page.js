@@ -606,7 +606,7 @@ export default function Home() {
                     rel="noopener noreferrer"
                     className="text-sm text-yellow-400 hover:text-yellow-300 underline transition font-medium break-all"
                   >
-                    {selectedGame.postUrl.replace('https://', '')}
+                    FitGirl Repacks
                   </a>
                 </div>
               </div>
