@@ -430,23 +430,24 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* ==== CAPTURAS CON VISOR ==== */}
+                {/* ==== CAPTURAS + TRÁILER CON VISOR ==== */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
                       Capturas del juego
                     </h3>
-
-                    {/* Preparamos el array para el visor (tráiler primero si existe) */}
+                
+                    {/* Preparamos el array completo para el visor (tráiler primero si existe) */}
                     {(() => {
                       const media = [];
                       if (selectedDetails.trailerVideo) {
                         media.push({ type: 'video', src: selectedDetails.trailerVideo });
                       }
                       selectedDetails.screenshots.forEach(src => media.push({ type: 'image', src }));
-
+                
                       return (
                         <>
+                          {/* GRID: ahora hasta 16 capturas */}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {selectedDetails.screenshots.slice(0, 16).map((src, i) => (
                               <div
@@ -465,15 +466,42 @@ export default function Home() {
                               </div>
                             ))}
                           </div>
-
-                          {selectedDetails.screenshots.length > 8 && (
+                
+                          {/* Indicador si hay más de 16 */}
+                          {selectedDetails.screenshots.length > 16 && (
                             <p className="text-center mt-6 text-yellow-400 font-bold">
-                              + {selectedDetails.screenshots.length - 8} capturas más (haz clic para ver todas)
+                              + {selectedDetails.screenshots.length - 16} capturas más (haz clic para ver todas)
                             </p>
                           )}
                         </>
                       );
                     })()}
+                
+                    {/* TRÁILER: vuelve a aparecer debajo del grid, como antes */}
+                    {selectedDetails.trailerVideo && (
+                      <div className="mt-10 max-w-4xl mx-auto">
+                        <h4 className="text-xl font-bold text-yellow-400 mb-4 text-center">
+                          Tráiler del juego
+                        </h4>
+                        <video
+                          controls
+                          preload="metadata"
+                          className="w-full rounded-xl shadow-2xl border-4 border-yellow-500/30"
+                          poster={selectedDetails.screenshots[0]}
+                          onClick={() => openViewer(
+                            [{ type: 'video', src: selectedDetails.trailerVideo }, 
+                             ...selectedDetails.screenshots.map(src => ({ type: 'image', src }))], 
+                            0
+                          )}
+                        >
+                          <source src={selectedDetails.trailerVideo} type="video/webm" />
+                          Tu navegador no soporta video.
+                        </video>
+                        <p className="text-center mt-3 text-sm text-gray-400">
+                          Haz clic en el vídeo para verlo a pantalla completa
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
