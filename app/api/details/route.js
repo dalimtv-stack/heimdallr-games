@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 
-// Helpers
+// Helpers (iguales)
 function textOrNull(str) {
   const s = (str || '').trim();
   return s && s !== 'N/A' ? s : null;
 }
-
 function matchOne(html, patterns) {
   for (const re of patterns) {
     const m = html.match(re);
@@ -13,7 +12,6 @@ function matchOne(html, patterns) {
   }
   return null;
 }
-
 function matchAll(html, pattern, groupIndex = 1, limit = 50) {
   const out = [];
   let m;
@@ -24,7 +22,6 @@ function matchAll(html, pattern, groupIndex = 1, limit = 50) {
   }
   return out;
 }
-
 function decodeEntities(str) {
   if (!str) return null;
   const named = {
@@ -53,8 +50,7 @@ export async function GET(req) {
 
     const res = await fetch(postUrl, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118 Safari/537.36',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
       cache: 'no-store',
@@ -67,179 +63,144 @@ export async function GET(req) {
     const rawHtml = await res.text();
     const html = decodeEntities(rawHtml);
 
-    // Título
-    let title =
-      matchOne(html, [
-        /<h1[^>]*class="post-title"[^>]*>(.*?)<\/h1>/is,
-        /<h1[^>]*>(.*?)<\/h1>/is,
-        /<title[^>]*>(.*?)<\/title>/is,
-      ]) || matchOne(html, [/itemprop="name"[^>]*content="(.*?)"/is]);
+    // ====== TÍTULO, CARÁTULA, GÉNEROS, etc. (todo igual que antes) ======
+    let title = matchOne(html, [
+      /<h1[^>]*class="post-title"[^>]*>(.*?)<\/h1>/is,
+      /<h1[^>]*>(.*?)<\/h1>/is,
+      /<title[^>]*>(.*?)<\/title>/is,
+    ]) || matchOne(html, [/itemprop="name"[^>]*content="(.*?)"/is]);
+    if (title && title.includes('FitGirl Repacks')) title = null;
 
-    if (title && title.includes('FitGirl Repacks')) {
-      title = null;
-    }
+    const cover = matchOne(html, [
+      /<img[^>]*class="cover"[^>]*src="(.*?)"/is,
+      /<img[^>]*itemprop="image"[^>]*src="(.*?)"/is,
+      /<a[^>]*class="fancybox"[^>]*href="(.*?)"/is,
+    ]) || matchOne(html, [
+      /<meta[^>]*property="og:image"[^>]*content="(.*?)"/is,
+      /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
+    ]);
 
-    // Carátula
-    const cover =
-      matchOne(html, [
-        /<img[^>]*class="cover"[^>]*src="(.*?)"/is,
-        /<img[^>]*itemprop="image"[^>]*src="(.*?)"/is,
-        /<a[^>]*class="fancybox"[^>]*href="(.*?)"/is,
-      ]) ||
-      matchOne(html, [
-        /<meta[^>]*property="og:image"[^>]*content="(.*?)"/is,
-        /<meta[^>]*name="twitter:image"[^>]*content="(.*?)"/is,
-      ]);
-	  
-	// ── Géneros (corta en Companies: – SÚPER SIMPLE Y FUNCIONA AL 100%)
-	const genresRaw = matchOne(html, [
-	  /Genres\/Tags:\s*([^<]+?)(?=\s*Companies:)/i,
-	  /Genres\/Tags:\s*([\s\S]*?)(?=\s*Companies:)/i,
-	  /Genres\/Tags:\s*([^<]+?)(?=\s*Languages:)/i  // fallback si Companies falla
-	]);
-	
-	const genres = genresRaw
-	  ? decodeEntities(
-	      genresRaw
-	        .replace(/Genres\/Tags:?\s*/gi, '')
-	        .replace(/<a[^>]*>(.*?)<\/a>/gi, '$1')  // solo enlaces, si hay
-	        .replace(/<[^>]+>/g, '')
-	        .replace(/\s+/g, ' ')
-	        .trim()
-	        .split(/,\s*|\s+\/\s+/)
-	        .map(s => s.trim())
-	        .filter(Boolean)
-	        .join(', ')
-	    )
-	  : null;
-		
-		// ── Compañía
-		const company = textOrNull(
-		  matchOne(html, [
-		    /Companies:\s*<strong>([\s\S]*?)<\/strong>/i,
-		    /Company:\s*<strong>([\s\S]*?)<\/strong>/i,
-		    /Publisher:\s*<strong>([\s\S]*?)<\/strong>/i,
-		    /Developer:\s*<strong>([\s\S]*?)<\/strong>/i,
-		    /Companies:\s*([^<\r\n]+)/i
-		  ])
-		);
-		
-		// ── Idiomas
-		const languages = textOrNull(
-		  matchOne(html, [
-		    /Languages:\s*<strong>([\s\S]*?)<\/strong>/i,
-		    /Languages?:\s*([^<\r\n]+)/i
-		  ])
-		);
-		
-		// ── Original Size
-		const originalSize = textOrNull(
-		  matchOne(html, [
-		    /Original\s+Size:\s*<strong>([\d.,\s]+ ?(?:GB|MB))<\/strong>/i,
-		    /Original\s+Size:\s*([\d.,\s]+ ?(?:GB|MB))/i
-		  ])
-		);
-		
-		// ── Repack Size (captura "from X GB", rangos, [Selective Download], etc.)
-		const repackSize = textOrNull(
-		  matchOne(html, [
-		    /Repack\s+Size:\s*<strong>((?:from )?[\d.,\s]+ ?(?:GB|MB)[^<]*)<\/strong>/i,
-		    /Repack\s+Size:\s*((?:from )?[\d.,\s]+ ?(?:GB|MB)[^<\r\n]*)/i
-		  ])
-		);
-	 	
-	// ── Tamaño después de instalado (funciona con • pegado, "up to", rangos, etc.)
-	const installedSize = textOrNull(
-		matchOne(html, [
-			/[•·]\s*HDD space after installation[:\s]*([^\n\r<]+)/i,
-			/HDD space after installation[:\s]*up to\s+([^\n\r<]+)/i,
-			/HDD space after installation[:\s]*([^\n\r<]+)/i,
-			/HDD space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
-			/up to ([\d.,\s–~]+ ?(?:GB|MB)).*?(?:installation|HDD)/i,
-			/HDD space after installation[^•]*?([\d.,\s–~]+ ?(?:GB|MB))/i
-		])
-	);
-	  
-    // Mirrors
-    const mirrors = [
-      ...new Set([
-        ...matchAll(html, /<a[^>]*href="(magnet:\?xt=urn:[^"]+)"[^>]*>/i),
-        ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>(?:Download|Mirror|CS\.RIN|Torrent)/i),
-        ...matchAll(html, /href="(https?:\/\/csrinru\.xyz[^"]+)"/i),
-      ]),
-    ].map(decodeEntities);
+    const genresRaw = matchOne(html, [
+      /Genres\/Tags:\s*([^<]+?)(?=\s*Companies:)/i,
+      /Genres\/Tags:\s*([\s\S]*?)(?=\s*Companies:)/i,
+      /Genres\/Tags:\s*([^<]+?)(?=\s*Languages:)/i
+    ]);
+    const genres = genresRaw
+      ? decodeEntities(
+          genresRaw
+            .replace(/Genres\/Tags:?\s*/gi, '')
+            .replace(/<a[^>]*>(.*?)<\/a>/gi, '$1')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .split(/,\s*|\s+\/\s+/)
+            .map(s => s.trim())
+            .filter(Boolean)
+            .join(', ')
+        )
+      : null;
 
-    const csrinLink =
-      matchOne(html, [/href="(magnet:\?xt=urn:[^"]+)"/i]) ||
-      mirrors.find((m) => m.startsWith('magnet:')) ||
-      null;
+    const company = textOrNull(matchOne(html, [
+      /Companies:\s*<strong>([\s\S]*?)<\/strong>/i,
+      /Company:\s*<strong>([\s\S]*?)<\/strong>/i,
+      /Publisher:\s*<strong>([\s\S]*?)<\/strong>/i,
+      /Developer:\s*<strong>([\s\S]*?)<\/strong>/i,
+      /Companies:\s*([^<\r\n]+)/i
+    ]));
 
-    // ── Screenshots reales + Video (solo lo que está bajo el <h3>Screenshots...</h3>)
-	const screenshotsSection = matchOne(html, [
-	  /<h3[^>]*>Screenshots\s*\(Click to enlarge\)\s*<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,
-	  /<h3[^>]*>Screenshots\s*\(Click to enlarge\)\s*<\/h3>[\s\S]*?(?=<h3|Repack Features|Game Features)/i
-	]);
-	
-	let screenshots = [];
-	let trailerVideo = null;
-	
-	if (screenshotsSection) {
-	  // Extraer imágenes
-	  const imgMatches = screenshotsSection.matchAll(/src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp))"/gi);
-	  for (const m of imgMatches) {
-	    if (m[1]) screenshots.push(m[1]);
-	  }
-	
-	  // Extraer video (si existe)
-	  const videoMatch = screenshotsSection.match(/<source[^>]+src="(https?:\/\/[^"]+\.webm)"/i);
-	  if (videoMatch?.[1]) {
-	    trailerVideo = videoMatch[1];
-	  }
-	}
+    const languages = textOrNull(matchOne(html, [
+      /Languages:\s*<strong>([\s\S]*?)<\/strong>/i,
+      /Languages?:\s*([^<\r\n]+)/i
+    ]));
 
-    // Torrent-stats
+    const originalSize = textOrNull(matchOne(html, [
+      /Original\s+Size:\s*<strong>([\d.,\s]+ ?(?:GB|MB))<\/strong>/i,
+      /Original\s+Size:\s*([\d.,\s]+ ?(?:GB|MB))/i
+    ]));
+
+    const repackSize = textOrNull(matchOne(html, [
+      /Repack\s+Size:\s*<strong>((?:from )?[\d.,\s]+ ?(?:GB|MB)[^<]*)<\/strong>/i,
+      /Repack\s+Size:\s*((?:from )?[\d.,\s]+ ?(?:GB|MB)[^<\r\n]*)/i
+    ]));
+
+    const installedSize = textOrNull(matchOne(html, [
+      /[•·]\s*HDD space after installation[:\s]*([^\n\r<]+)/i,
+      /HDD space after installation[:\s]*up to\s+([^\n\r<]+)/i,
+      /HDD space after installation[:\s]*([^\n\r<]+)/i,
+      /HDD space after installation[:\s]*([\d.,\s–~]+ ?(?:GB|MB))/i,
+      /up to ([\d.,\s–~]+ ?(?:GB|MB)).*?(?:installation|HDD)/i,
+      /HDD space after installation[^•]*?([\d.,\s–~]+ ?(?:GB|MB))/i
+    ]));
+
+    const mirrors = [...new Set([
+      ...matchAll(html, /<a[^>]*href="(magnet:\?xt=urn:[^"]+)"[^>]*>/i),
+      ...matchAll(html, /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>(?:Download|Mirror|CS\.RIN|Torrent)/i),
+      ...matchAll(html, /href="(https?:\/\/csrinru\.xyz[^"]+)"/i),
+    ])].map(decodeEntities);
+
+    const csrinLink = matchOne(html, [/href="(magnet:\?xt=urn:[^"]+)"/i]) ||
+      mirrors.find(m => m.startsWith('magnet:')) || null;
+
     const torrentStatsImage = matchOne(html, [/(https?:\/\/torrent-stats\.info\/[A-Za-z0-9/_-]+\.png)/i]);
 
-	// ── Repack Features (funciona en TODOS los repacks actuales de FitGirl – 2024-2025)
-	const repackFeaturesRaw = matchOne(html, [
-	  /<h3[^>]*>Repack Features<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,
-	  /<h3[^>]*>Repack Features<\/h3>\s*<ul[^>]*>([\s\S]*?)<\/ul>/i,
-	  /<h3[^>]*>Repack Features<\/h3>\s*[\s\S]*?(?:<h3|<div class="idc-)/i,  // fallback seguro sin regex roto
-	  /<h3[^>]*>Repack Features<\/h3>\s*([\s\S]*?)(?=<h3|Download Mirrors|<\/div>)/i
-	]);
-	
-	const repackFeatures = repackFeaturesRaw
-	  ? decodeEntities(
-	      repackFeaturesRaw
-	        .replace(/<[^>]+>/g, '')                    // quita todo HTML
-	        .replace(/[•·•]\s*/g, '\n• ')                // convierte cualquier bullet en salto + •
-	        .replace(/^\s*|\s*$/gm, '')                 // trim por línea
-	        .replace(/\n+/g, '\n')                      // un solo salto por línea
-	        .trim()
-	    )
-	  : null;
+    // ====== CAPTURAS + TRÁILER (sin cambios) ======
+    const screenshotsSection = matchOne(html, [
+      /<h3[^>]*>Screenshots\s*\(Click to enlarge\)\s*<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,
+      /<h3[^>]*>Screenshots\s*\(Click to enlarge\)\s*<\/h3>[\s\S]*?(?=<h3|Repack Features|Game Features)/i
+    ]);
+    let screenshots = [];
+    let trailerVideo = null;
+    if (screenshotsSection) {
+      const imgMatches = screenshotsSection.matchAll(/src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp))"/gi);
+      for (const m of imgMatches) if (m[1]) screenshots.push(m[1]);
+      const videoMatch = screenshotsSection.match(/<source[^>]+src="(https?:\/\/[^"]+\.webm)"/i);
+      if (videoMatch?.[1]) trailerVideo = videoMatch[1];
+    }
 
-    // Información del juego + Features + DLCs (bloque oficial de FitGirl)
-	const gameDescriptionRaw = matchOne(html, [
-	  /<div[^>]*class="su-spoiler-title"[^>]*>Game Description[\s\S]*?<div[^>]*class="su-spoiler-content[^>]*>([\s\S]*?)<\/div>/i,
-	  /Game Description[\s\S]*?<div[^>]*class="su-spoiler-content[^>]*>([\s\S]*?)<\/div>/i,
-	  />Game Description<\/div>\s*<div[^>]*class="su-spoiler-content[^>]*>([\s\S]*?)<\/div>/i
-	]);
-	
-	const gameInfo = gameDescriptionRaw
-	  ? decodeEntities(
-	      gameDescriptionRaw
-	        .replace(/<br\s*\/?>/gi, '\n')
-	        .replace(/<\/p>/gi, '\n\n')
-	        .replace(/<\/?(strong|b)[^>]*>/gi, '||')   // ← usamos || como marcador temporal
-	        .replace(/<\/?ul[^>]*>/gi, '')
-	        .replace(/<\/?li[^>]*>/gi, '• ')
-	        .replace(/<[^>]+>/g, '')           // quita todo el resto de HTML
-	        .replace(/\|\|/g, '**')            // vuelve a poner ** solo donde había <strong> o <b>
-	        .replace(/\n{3,}/g, '\n\n')
-	        .trim()
-	    )
-	  : null;
+    // ====== REPACK FEATURES (sin cambios) ======
+    const repackFeaturesRaw = matchOne(html, [
+      /<h3[^>]*>Repack Features<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/i,
+      /<h3[^>]*>Repack Features<\/h3>\s*<ul[^>]*>([\s\S]*?)<\/ul>/i,
+      /<h3[^>]*>Repack Features<\/h3>\s*[\s\S]*?(?:<h3|<div class="idc-)/i,
+      /<h3[^>]*>Repack Features<\/h3>\s*([\s\S]*?)(?=<h3|Download Mirrors|<\/div>)/i
+    ]);
+    const repackFeatures = repackFeaturesRaw
+      ? decodeEntities(
+          repackFeaturesRaw
+            .replace(/<[^>]+>/g, '')
+            .replace(/[•·•]\s*/g, '\n• ')
+            .replace(/^\s*|\s*$/gm, '')
+            .replace(/\n+/g, '\n')
+            .trim()
+        )
+      : null;
+
+    // ====== GAME INFO (sin cambios) ======
+    const gameDescriptionRaw = matchOne(html, [
+      /<div[^>]*class="su-spoiler-title"[^>]*>Game Description[\s\S]*?<div[^>]*class="su-spoiler-content[^>]*>([\s\S]*?)<\/div>/i,
+      />Game Description<\/div>\s*<div[^>]*class="su-spoiler-content[^>]*>([\s\S]*?)<\/div>/i
+    ]);
+    const gameInfo = gameDescriptionRaw
+      ? decodeEntities(
+          gameDescriptionRaw
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n\n')
+            .replace(/<\/?(strong|b)[^>]*>/gi, '||')
+            .replace(/<\/?ul[^>]*>/gi, '')
+            .replace(/<\/?li[^>]*>/gi, '• ')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\|\|/g, '**')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim()
+        )
+      : null;
+
+    // ====== NUEVO: ACTUALIZACIONES (Game Updates – Direct Links only) ======
+    const updatesHtml = matchOne(html, [
+      /<h3[^>]*>Game Updates\s*–\s*Direct Links only<\/h3>\s*<div[^>]*style="[^"]*background-color:\s*#9aff612e[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<h3[^>]*>Game Updates[^<]*<\/h3>\s*<div[^>]*background[^>]*>([\s\S]*?)<\/div>/i,
+      /<h3[^>]*>Game Updates[^<]*<\/h3>[\s\S]*?(?=<h3|\s*<\/div>|\s*Repack Features)/i
+    ]);
 
     return NextResponse.json({
       title: textOrNull(title),
@@ -257,7 +218,9 @@ export async function GET(req) {
       gameInfo,
       csrinLink,
       torrentStatsImage,
+      updatesHtml: updatesHtml ? `<h3>Game Updates – Direct Links only</h3>${updatesHtml}` : null, // ← bonito y limpio
     });
+
   } catch (err) {
     return NextResponse.json({ error: err?.message || 'Unknown error' }, { status: 500 });
   }
