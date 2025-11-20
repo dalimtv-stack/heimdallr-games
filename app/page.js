@@ -30,6 +30,69 @@ function MarkdownText({ text }) {
 }
 
 // ──────────────────────────────────────────────────────────────
+// VISOR DE CAPTURAS + TRÁILER (NUEVO, sin tocar nada más)
+// ──────────────────────────────────────────────────────────────
+function MediaViewer({ media = [], startIndex = 0, onClose }) {
+  const [index, setIndex] = useState(startIndex);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') setIndex(prev => prev > 0 ? prev - 1 : media.length - 1);
+      if (e.key === 'ArrowRight') setIndex(prev => prev < media.length - 1 ? prev + 1 : 0);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [media.length, onClose]);
+
+  if (!media.length) return null;
+  const current = media[index];
+
+  return (
+    <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="relative max-w-7xl w-full h-full flex items-center justify-center px-8"
+           onClick={e => e.stopPropagation()}>
+        {/* Cerrar */}
+        <button onClick={onClose} className="absolute top-6 right-6 text-6xl text-white hover:text-yellow-400 z-10">×</button>
+
+        {/* Contenido */}
+        {current.type === 'video' ? (
+          <video controls autoPlay className="max-w-full max-h-full rounded-xl shadow-2xl">
+            <source src={current.src} type="video/webm" />
+          </video>
+        ) : (
+          <Image
+            src={current.src}
+            alt={`Captura ${index + 1}`}
+            width={1920}
+            height={1080}
+            className="max-w-full max-h-full object-contain"
+            unoptimized
+          />
+        )}
+
+        {/* Flechas */}
+        {media.length > 1 && (
+          <>
+            <button onClick={() => setIndex(prev => prev > 0 ? prev - 1 : media.length - 1)}
+                    className="absolute left-8 text-7xl text-white hover:text-yellow-400">‹</button>
+            <button onClick={() => setIndex(prev => prev < media.length - 1 ? prev + 1 : 0)}
+                    className="absolute right-8 text-7xl text-white hover:text-yellow-400">›</button>
+          </>
+        )}
+
+        {/* Contador */}
+        {media.length > 1 && (
+          <div className="absolute bottom-8 bg-black/70 px-6 py-3 rounded-full text-xl font-bold">
+            {index + 1} / {media.length}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────────────────────
 async function sendMagnetToQB(magnet) {
@@ -41,7 +104,6 @@ async function sendMagnetToQB(magnet) {
     alert('Error abriendo magnet: ' + err.message);
   }
 }
-
 
 export default function Home() {
   const [games, setGames] = useState([]);
@@ -57,15 +119,25 @@ export default function Home() {
   const [showInfo, setShowInfo] = useState(false);
   const [nextGame, setNextGame] = useState(null);
 
+  // ==== VISOR ====
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerMedia, setViewerMedia] = useState([]);
+  const [viewerStartIndex, setViewerStartIndex] = useState(0);
+
+  const openViewer = (mediaArray, startIdx = 0) => {
+    setViewerMedia(mediaArray);
+    setViewerStartIndex(startIdx);
+    setViewerOpen(true);
+  };
+
   // NUEVO: Carga la portada real desde el post del juego (solo en buscador)
   const fetchRealCover = async (game) => {
     if (tab !== 'buscador' || game.cover) return;
-
     try {
       const res = await fetch(`/api/details?url=${encodeURIComponent(game.postUrl)}`);
       const data = await res.json();
       if (data.cover) {
-        setGames(prev => prev.map(g => 
+        setGames(prev => prev.map(g =>
           g.id === game.id ? { ...g, cover: data.cover } : g
         ));
       }
@@ -81,20 +153,16 @@ export default function Home() {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     const p = reset ? 1 : page;
-
     const params = new URLSearchParams();
     params.set('tab', tab);
     if (search && tab === 'buscador') params.set('search', search.trim());
     params.set('page', p);
-
     try {
       const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
       const newGames = Array.isArray(data.games) ? data.games : [];
-
       if (reset) {
         setGames(newGames);
         setPage(2);
@@ -103,14 +171,12 @@ export default function Home() {
         setPage(p + 1);
       }
       setHasMore(data.hasMore);
-
       // En el buscador: cargar portadas reales una vez cargada la lista
       if (tab === 'buscador' && reset) {
         newGames.forEach((game, index) => {
           setTimeout(() => fetchRealCover(game), index * 350); // suave y sin saturar
         });
       }
-
     } catch (err) {
       console.error('Error cargando juegos:', err);
     } finally {
@@ -286,11 +352,9 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
-
                 {hasMore && games.length > 0 && (
                   <div className="text-center mt-16">
                     <button
@@ -366,32 +430,50 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* ==== CAPTURAS CON VISOR ==== */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
                       Capturas del juego
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {selectedDetails.screenshots.slice(0, 8).map((src, i) => (
-                        <Image
-                          key={i}
-                          src={src}
-                          alt={`Captura ${i + 1}`}
-                          width={400}
-                          height={225}
-                          className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300 object-cover"
-                          unoptimized
-                        />
-                      ))}
-                    </div>
-                    {selectedDetails.trailerVideo && (
-                      <div className="mt-8 max-w-4xl mx-auto">
-                        <video controls preload="metadata" className="w-full rounded-xl shadow-2xl border-4 border-yellow-500/30" poster={selectedDetails.screenshots[0]}>
-                          <source src={selectedDetails.trailerVideo} type="video/webm" />
-                          Tu navegador no soporta video.
-                        </video>
-                      </div>
-                    )}
+
+                    {/* Preparamos el array para el visor (tráiler primero si existe) */}
+                    {(() => {
+                      const media = [];
+                      if (selectedDetails.trailerVideo) {
+                        media.push({ type: 'video', src: selectedDetails.trailerVideo });
+                      }
+                      selectedDetails.screenshots.forEach(src => media.push({ type: 'image', src }));
+
+                      return (
+                        <>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {selectedDetails.screenshots.slice(0, 8).map((src, i) => (
+                              <div
+                                key={i}
+                                className="cursor-zoom-in"
+                                onClick={() => openViewer(media, selectedDetails.trailerVideo ? i + 1 : i)}
+                              >
+                                <Image
+                                  src={src}
+                                  alt={`Captura ${i + 1}`}
+                                  width={400}
+                                  height={225}
+                                  className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300 object-cover w-full h-48"
+                                  unoptimized
+                                />
+                              </div>
+                            ))}
+                          </div>
+
+                          {selectedDetails.screenshots.length > 8 && (
+                            <p className="text-center mt-6 text-yellow-400 font-bold">
+                              + {selectedDetails.screenshots.length - 8} capturas más (haz clic para ver todas)
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -490,6 +572,15 @@ export default function Home() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ==== VISOR GLOBAL ==== */}
+        {viewerOpen && (
+          <MediaViewer
+            media={viewerMedia}
+            startIndex={viewerStartIndex}
+            onClose={() => setViewerOpen(false)}
+          />
         )}
       </div>
     </div>
