@@ -604,7 +604,7 @@ export default function Home() {
                     href={selectedGame.postUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-yellow-400 hover:text-yellow-300 underline font-medium break-all"
+                    className="text-yellow-500 hover:text-yellow-400 underline font-medium break-all"
                   >
                     {selectedGame.postUrl.replace('https://', '')}
                   </a>
