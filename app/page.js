@@ -432,7 +432,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* === NUEVO: ACTUALIZACIONES === */}
+                {/* === ACTUALIZACIONES (enlaces 100 % funcionales) === */}
                 {selectedDetails.updatesHtml && (
                   <div className="mt-6">
                     <button
@@ -440,11 +440,19 @@ export default function Home() {
                       className="w-full text-left py-3 px-4 font-bold text-yellow-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition flex justify-between items-center"
                     >
                       Actualizaciones del juego
-                      <span>{showUpdates ? '▲' : '▼'}</span>
+                      <span>{showUpdates ? 'Up' : 'Down'}</span>
                     </button>
                     {showUpdates && (
                       <div className="mt-2 bg-gray-900/80 border border-green-600/40 rounded-lg p-6 text-sm leading-relaxed text-gray-200">
-                        <div dangerouslySetInnerHTML={{ __html: selectedDetails.updatesHtml }} />
+                        {/* Sanitizamos el HTML para que los estilos inline no rompan nada */}
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: selectedDetails.updatesHtml
+                              .replace(/style="[^"]*"/gi, '') // Quitamos estilos inline peligrosos
+                              .replace(/<div[^>]*>/gi, '<div class="mb-4">') // Añadimos margen bonito
+                              .replace(/<a /gi, '<a class="text-yellow-400 hover:text-yellow-300 underline" ')
+                          }}
+                        />
                       </div>
                     )}
                   </div>
@@ -507,8 +515,10 @@ export default function Home() {
                     }}
                     className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-500 transition whitespace-nowrap"
                   >
-                    <span className="text-xl">Atrás</span>
+                    <span className="text-xl">←</span>
+                    <span>Atrás</span>
                   </button>
+                
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -522,12 +532,17 @@ export default function Home() {
                     className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
                   >
                     <span>Siguiente</span>
-                    <span className="text-xl">Siguiente</span>
+                    <span className="text-xl">→</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
-                  {games.length > 0 && games.findIndex(g => g.id === selectedGame.id) === games.length - 1 && !hasMore && (
-                    <div className="text-gray-500 text-sm italic ml-4">Último juego de la lista</div>
-                  )}
+                
+                  {games.length > 0 &&
+                    games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
+                    !hasMore && (
+                      <div className="text-gray-500 text-sm italic ml-4">
+                        Último juego de la lista
+                      </div>
+                    )}
                 </div>
 
                 <div className="text-center">
