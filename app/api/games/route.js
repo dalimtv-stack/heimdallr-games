@@ -44,11 +44,10 @@ export async function GET(request) {
       const lower = title.toLowerCase();
       return (
         lower.includes('call for donations') ||
-        lower.includes('donation') ||
+        lower.includes('genesis order') ||
+        lower.includes('honey select') ||
         lower.includes('site update') ||
         lower.includes('fitgirl repacks status') ||
-        lower.includes('new site') ||
-        lower.includes('temporary') ||
         lower.includes('maintenance') ||
         lower.includes('digest') ||
         title.includes('→') ||
