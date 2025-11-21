@@ -41,17 +41,44 @@ export async function GET(request) {
 
     // ==================== FUNCIÓN DE FILTRADO (solo para excluir anuncios) ====================
     const isNotAGamePost = (title, postUrl = '') => {
-      const lower = title.toLowerCase();
+      const lower = title.toLowerCase()
+        .replace(/['’‘]/g, '')    // ← Elimina comillas y apóstrofes (tanto ' como ’)
+        .replace(/[-–—]/g, ' ')   // ← Convierte todo tipo de guiones en espacio
+        .replace(/\s+/g, ' ');    // ← Normaliza espacios
+    
       return (
-        lower.includes('call for donations') ||
-        lower.includes('genesis order') ||
-        lower.includes('honey select') ||
-        lower.includes('site update') ||
-        lower.includes('fitgirl repacks status') ||
-        lower.includes('maintenance') ||
-        lower.includes('digest') ||
-        title.includes('→') ||
-        postUrl.includes('/a-call-for-donations')
+  	  // Anuncios y posts del sitio
+  		lower.includes('call for donations') ||
+  		title.includes('→') ||
+  		postUrl.includes('/a-call-for-donations') ||
+  
+  		// === CONTENIDO +18 / HENTAI / EROGE (filtrado total) ===
+  		lower.includes('genesis order') ||
+  		lower.includes('honey select') ||
+  		lower.includes('av director life') ||
+  		lower.includes('one more night + windows 7 fix') ||
+  		lower.includes('honeycome') ||
+  		lower.includes('nymphomaniac') ||
+  		lower.includes('lust n dead') ||
+  		lower.includes('roomgirl paradise') ||
+  		lower.includes('house party: supporter') ||
+  
+  		// Palabras clave genéricas de contenido adulto (muy efectivas)
+  		lower.includes('hentai') ||
+  		lower.includes('eroge') ||
+  		lower.includes('nude') ||
+  		lower.includes('sex') ||
+  		lower.includes('porn') ||
+  		lower.includes('lewd') ||
+  		lower.includes('nsfw') ||
+  		lower.includes('dojin') ||
+  		lower.includes('koikatsu') ||
+  		lower.includes('custom order maid') ||
+  		lower.includes('honey select 2') ||
+  		lower.includes('ai shoujo') ||
+  		lower.includes('cm3d2') ||
+  		lower.includes('sexy beach') ||
+  		lower.includes('nekopara') && lower.includes('extra') // Nekopara Extra es +18
       );
     };
 
