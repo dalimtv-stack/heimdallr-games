@@ -39,6 +39,23 @@ export async function GET(request) {
     const $ = cheerio.load(data);
     const games = [];
 
+    // ==================== FUNCIÓN DE FILTRADO (solo para excluir anuncios) ====================
+    const isNotAGamePost = (title, postUrl = '') => {
+      const lower = title.toLowerCase();
+      return (
+        lower.includes('call for donations') ||
+        lower.includes('donation') ||
+        lower.includes('site update') ||
+        lower.includes('fitgirl repacks status') ||
+        lower.includes('new site') ||
+        lower.includes('temporary') ||
+        lower.includes('maintenance') ||
+        lower.includes('digest') ||
+        title.includes('→') ||
+        postUrl.includes('/a-call-for-donations')
+      );
+    };
+
     // ==================== POPULARES DEL MES ====================
     if (tab === 'populares_mes') {
       const monthWidget = $('h2.widgettitle:contains("Most Popular Repacks of the Month")')
@@ -53,6 +70,10 @@ export async function GET(request) {
         if (!postUrl?.includes('fitgirl-repacks.site')) return;
         let title = link.attr('title') || img.attr('alt') || 'Unknown Game';
         title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
+
+        // ← FILTRO AQUÍ
+        if (isNotAGamePost(title, postUrl)) return;
+
         let cover = img.attr('src') || '';
         if (cover.includes('?resize=')) cover = cover.split('?resize=')[0];
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
@@ -75,6 +96,10 @@ export async function GET(request) {
         if (!postUrl?.includes('fitgirl-repacks.site')) return;
         let title = link.attr('title') || img.attr('alt') || 'Unknown Game';
         title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
+
+        // ← FILTRO AQUÍ
+        if (isNotAGamePost(title, postUrl)) return;
+
         let cover = img.attr('src') || '';
         if (cover.includes('?resize=')) cover = cover.split('?resize=')[0];
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
@@ -86,19 +111,21 @@ export async function GET(request) {
 
     // ==================== BÚSQUEDA + NOVEDADES + A-Z ====================
     if (tab === 'todos_az') {
-      // La página A-Z usa el plugin ListCategoryPosts → los juegos están en #lcp_instance_0
       $('#lcp_instance_0 li a').each((_, el) => {
         const a = $(el);
         const postUrl = a.attr('href');
         if (!postUrl || !postUrl.includes('fitgirl-repacks.site')) return;
         let title = a.text().trim();
         title = title.replace(/–\s*FitGirl Repack.*/i, '').trim();
+
+        // ← FILTRO AQUÍ
+        if (isNotAGamePost(title, postUrl)) return;
+
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
-        // No hay portada en esta página → dejamos cover vacío (el frontend lo maneja)
         games.push({ id, title, cover: '', postUrl });
       });
     } else {
-      // NOVEDADES + BÚSQUEDA (mismo formato: article.post)
+      // NOVEDADES + BÚSQUEDA
       $('article.post').each((_, el) => {
         const article = $(el);
         const link = article.find('h1.entry-title a, h2.entry-title a').first();
@@ -107,10 +134,13 @@ export async function GET(request) {
         if (/upcoming|digest/i.test(rawTitle)) return;
         const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
         const postUrl = link.attr('href') || '';
+
+        // ← FILTRO AQUÍ (principal para novedades y búsqueda)
+        if (isNotAGamePost(title, postUrl)) return;
+
         const id = postUrl
           ? crypto.createHash('md5').update(postUrl).digest('hex')
           : Date.now().toString();
-
         let cover = '';
         const img = article.find('img').first();
         if (img.length) {
@@ -120,7 +150,6 @@ export async function GET(request) {
         if (!cover) {
           cover = 'https://dummyimage.com/300x450/000000/ffffff.png&text=' + encodeURIComponent(title.slice(0, 15));
         }
-
         games.push({ id, title, cover, postUrl });
       });
     }
