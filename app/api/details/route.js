@@ -110,24 +110,23 @@ export async function GET(req) {
 
 	// ── Idiomas (AHORA 100% FIABLE: 1 idioma o 100) ──
 	const languagesRaw = matchOne(html, [
-	  /Languages?:\s*<strong>([\s\S]*?)<\/strong>/i,           // Caso normal con <strong>
-	  /Languages?:\s*([^<\r\n]+?)(?=\s*(?:Original Size|Repack Size|HDD space|$))/i,  // Sin strong, pero antes de otro campo
+	  /Languages?:\s*<strong>([\s\S]*?)<\/strong>/i,
+	  /Languages?:\s*([^<\r\n]+?)(?=\s*(?:Original Size|Repack Size|HDD space|$))/i,
 	  /Languages?:\s*([A-Z\/,\s]+?)(?=\s*(?:Original Size|Repack Size))/i,
-	  /Languages?:\s*([A-Z]+)\b/i                              // Caso ultra-simple: solo RUS, ENG, MULTi, etc.
+	  /Languages?:\s*([A-Z\/,\s]+)\b/i
 	]);
 
 	const languages = languagesRaw
 	  ? decodeEntities(
 		  languagesRaw
 			.replace(/Languages?:?\s*/gi, '')
-			.replace(/<[^>]+>/g, '')           // quita cualquier HTML residual
-			.replace(/\//g, ', ')              // RUS/ENG → RUS, ENG
+			.replace(/<[^>]+>/g, '')
+			.replace(/\//g, ', ')
 			.replace(/\s+/g, ' ')
 			.trim()
 			.split(/,\s*|\s+/)
 			.map(s => s.trim().toUpperCase())
 			.filter(Boolean)
-			.sort()
 			.join(', ')
 		)
 	  : null;
