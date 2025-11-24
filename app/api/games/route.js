@@ -58,6 +58,7 @@ export async function GET(request) {
   		lower.includes('av director life') ||
   		lower.includes('one more night + windows 7 fix') ||
   		lower.includes('honeycome') ||
+  		lower.includes('repack update') ||
   		lower.includes('nymphomaniac') ||
   		lower.includes('lust n dead') ||
   		lower.includes('roomgirl paradise') ||
