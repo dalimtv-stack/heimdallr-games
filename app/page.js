@@ -49,7 +49,7 @@ function MediaViewer({ media = [], startIndex = 0, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="relative max-w-7xl w-full h-full flex items-center justify-center px-8"
-           onClick={e => e.stopPropagation()}>
+        onClick={e => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-6 right-6 text-6xl text-white hover:text-yellow-400 z-10">×</button>
         {current.type === 'video' ? (
           <video controls autoPlay className="max-w-full max-h-full rounded-xl shadow-2xl">
@@ -68,9 +68,9 @@ function MediaViewer({ media = [], startIndex = 0, onClose }) {
         {media.length > 1 && (
           <>
             <button onClick={() => setIndex(prev => prev > 0 ? prev - 1 : media.length - 1)}
-                    className="absolute left-8 text-7xl text-white hover:text-yellow-400">‹</button>
+              className="absolute left-8 text-7xl text-white hover:text-yellow-400">‹</button>
             <button onClick={() => setIndex(prev => prev < media.length - 1 ? prev + 1 : 0)}
-                    className="absolute right-8 text-7xl text-white hover:text-yellow-400">›</button>
+              className="absolute right-8 text-7xl text-white hover:text-yellow-400">›</button>
           </>
         )}
         {media.length > 1 && (
@@ -111,7 +111,8 @@ export default function Home() {
   const [nextGame, setNextGame] = useState(null); // ← SIN TIPOS → 100% JS PURO
 
   // ==== FAVORITOS ====
-  const [favorites, setFavorites] = useState([]);
+  // Se recomienda que favorites guarde objetos { id: string, postUrl: string } para el futuro
+  const [favorites, setFavorites] = useState([]); 
 
   useEffect(() => {
     const saved = localStorage.getItem('heimdallr_favorites');
@@ -123,6 +124,10 @@ export default function Home() {
   }, [favorites]);
 
   const toggleFavorite = (gameId) => {
+    // Para simplificar la corrección actual, mantenemos la lógica de guardar solo IDs
+    // ¡OJO! Esto hará que la nueva lógica POST en la API sólo reciba los IDs.
+    // El backend necesitará buscar la URL si el ID no es suficiente para el scraping.
+    // La forma más robusta sería pasar el objeto completo del juego si el backend lo necesita.
     setFavorites(prev =>
       prev.includes(gameId)
         ? prev.filter(id => id !== gameId)
@@ -167,18 +172,45 @@ export default function Home() {
     }
     setLoading(true);
     const p = reset ? 1 : page;
-    const params = new URLSearchParams();
-    params.set('tab', tab);
-    if (search && tab === 'buscador') params.set('search', search.trim());
-    params.set('page', p);
+    
+    let res;
+
+    // 🚩 INICIO DE LA CORRECCIÓN DE FAVORITOS
+    if (tab === 'favoritos') {
+      // 1. Si estamos en favoritos, usamos el método POST para enviar los IDs al backend
+      // Esto requiere que app/api/games/route.js implemente la función POST.
+      try {
+        res = await fetch('/api/games', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          // Enviamos la lista de IDs de favoritos al servidor
+          body: JSON.stringify({ favorites: Array.isArray(favorites) ? favorites : [] }),
+        });
+      } catch (err) {
+        console.error('Error en POST /api/games:', err);
+        setLoading(false);
+        return;
+      }
+    } else {
+      // 2. Para las otras pestañas, usamos el método GET original
+      const params = new URLSearchParams();
+      params.set('tab', tab);
+      if (search && tab === 'buscador') params.set('search', search.trim());
+      params.set('page', p);
+      res = await fetch(`/api/games?${params.toString()}`);
+    }
+    // 🚩 FIN DE LA CORRECCIÓN DE FAVORITOS
+
     try {
-      const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
       const newGames = Array.isArray(data.games) ? data.games : [];
 
-      const filteredGames = tab === 'favoritos'
-        ? newGames.filter(game => favorites.includes(game.id))
-        : newGames;
+      // 🚩 AJUSTE: Si usamos el método POST (favoritos), el filtro local debe ELIMINARSE.
+      // Si la API GET se usa para favoritos, el filtro local se mantiene, pero es ineficiente.
+      // Puesto que hemos implementado la llamada POST, asumimos que el backend 
+      // ya devuelve SÓLO los juegos favoritos, por lo que no se requiere el filtro aquí.
+
+      const filteredGames = newGames; // Usamos newGames directamente
 
       if (reset) {
         setGames(filteredGames);
@@ -210,7 +242,7 @@ export default function Home() {
     setNextGame(null);
     setLoading(true);
     fetchGames(true);
-  }, [tab, search]);
+  }, [tab, search, favorites]); // Añadido 'favorites' para recargar al cambiar favoritos
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -261,7 +293,7 @@ export default function Home() {
         {/* PESTAÑAS + FAVORITOS */}
         <div className="mb-8 flex justify-center gap-2 flex-wrap">
           {[
-            { key: 'nOVEDADES', label: 'Novedades' },
+            { key: 'novedades', label: 'Novedades' }, // Corregido: 'nOVEDADES' -> 'novedades' para consistencia
             { key: 'populares_mes', label: 'Populares (mes)' },
             { key: 'populares_ano', label: 'Populares (año)' },
             { key: 'todos_az', label: 'Todos (A-Z)' },
@@ -335,7 +367,18 @@ export default function Home() {
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
-                {hasMore && games.length > 0 && (
+                {/* Mensaje especial para Favoritos si está vacío */}
+                {!loading && tab === 'favoritos' && games.length === 0 && favorites.length > 0 && (
+                    <p className="text-center text-xl text-gray-500 mt-20">
+                        No se han encontrado datos para tus favoritos. Asegúrate de que el backend POST funcione.
+                    </p>
+                )}
+                {!loading && tab === 'favoritos' && favorites.length === 0 && (
+                    <p className="text-center text-xl text-gray-500 mt-20">
+                        Aún no tienes juegos marcados como favoritos.
+                    </p>
+                )}
+                {hasMore && games.length > 0 && tab !== 'favoritos' && (
                   <div className="text-center mt-16">
                     <button onClick={loadMore} disabled={loading} className="px-12 py-5 bg-yellow-500 text-black text-xl font-bold rounded-full disabled:opacity-50">
                       {loading ? 'Cargando...' : 'Cargar más juegos'}
