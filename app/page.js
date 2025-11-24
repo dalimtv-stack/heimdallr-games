@@ -106,8 +106,32 @@ export default function Home() {
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [showUpdates, setShowUpdates] = useState(false); // NUEVO
+  const [showUpdates, setShowUpdates] = useState(false);
   const [nextGame, setNextGame] = useState(null);
+
+  // ==== FAVORITOS (NUEVO) ====
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Cargar favoritos al iniciar
+  useEffect(() => {
+    const saved = localStorage.getItem('heimdallr_favorites');
+    if (saved) setFavorites(JSON.parse(saved));
+  }, []);
+
+  // Guardar cada vez que cambien
+  useEffect(() => {
+    localStorage.setItem('heimdallr_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = (gameId: string) => {
+    setFavorites(prev =>
+      prev.includes(gameId)
+        ? prev.filter(id => id !== gameId)
+        : [...prev, gameId]
+    );
+  };
+
+  const isFavorite = (gameId: string) => favorites.includes(gameId);
 
   // ==== VISOR ====
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -152,11 +176,17 @@ export default function Home() {
       const res = await fetch(`/api/games?${params.toString()}`);
       const data = await res.json();
       const newGames = Array.isArray(data.games) ? data.games : [];
+
+      // FILTRADO DE FAVORITOS (si estamos en la pestaña favoritos)
+      const filteredGames = tab === 'favoritos'
+        ? newGames.filter(game => favorites.includes(game.id))
+        : newGames;
+
       if (reset) {
-        setGames(newGames);
+        setGames(filteredGames);
         setPage(2);
       } else {
-        setGames(prev => [...prev, ...newGames]);
+        setGames(prev => [...prev, ...filteredGames]);
         setPage(p + 1);
       }
       setHasMore(data.hasMore);
@@ -230,6 +260,7 @@ export default function Home() {
           Heimdallr Games
         </h1>
 
+        {/* PESTAÑAS + FAVORITOS CON CONTADOR */}
         <div className="mb-8 flex justify-center gap-2 flex-wrap">
           {[
             { key: 'novedades', label: 'Novedades' },
@@ -237,6 +268,7 @@ export default function Home() {
             { key: 'populares_ano', label: 'Populares (año)' },
             { key: 'todos_az', label: 'Todos (A-Z)' },
             { key: 'buscador', label: 'Buscador' },
+            { key: 'favoritos', label: `Mis favoritos ❤️ (${favorites.length})` }, // NUEVA PESTAÑA
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -250,6 +282,7 @@ export default function Home() {
           ))}
         </div>
 
+        {/* BUSCADOR */}
         {tab === 'buscador' && viewMode === 'list' && (
           <div className="max-w-2xl mx-auto mb-12 px-4">
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
@@ -268,23 +301,38 @@ export default function Home() {
           </div>
         )}
 
+        {/* LISTADO DE JUEGOS */}
         {viewMode === 'list' && (
           <>
-            {(tab === 'todos_az' || tab === 'buscador') ? (
+            {(tab === 'todos_az' || tab === 'buscador' || tab === 'favoritos') ? (
               <div className="max-w-4xl mx-auto">
                 <div className="space-y-3">
                   {games.map((game) => (
                     <div
                       key={game.id}
-                      onClick={() => handleSelect(game, games)}
-                      className="group cursor-pointer bg-gray-800/60 hover:bg-gray-700 rounded-xl p-6 transition-all duration-200 border border-gray-700 hover:border-yellow-500/60 shadow-lg hover:shadow-yellow-500/10"
+                      className="group cursor-pointer bg-gray-800/60 hover:bg-gray-700 rounded-xl p-6 transition-all duration-200 border border-gray-700 hover:border-yellow-500/60 shadow-lg hover:shadow-yellow-500/10 relative"
                     >
-                      <h3 className="text-2xl font-bold text-yellow-400 group-hover:text-yellow-300 transition">
+                      {/* ESTRELLA FAVORITOS EN LISTA A-Z / FAVORITOS */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(game.id);
+                        }}
+                        className="absolute top-4 right-6 text-3xl"
+                      >
+                        {isFavorite(game.id) ? 'Filled Star' : 'Empty Star'}
+                      </button>
+
+                      <h3
+                        onClick={() => handleSelect(game, games)}
+                        className="text-2xl font-bold text-yellow-400 group-hover:text-yellow-300 transition pr-12"
+                      >
                         {game.title}
                       </h3>
                     </div>
                   ))}
                 </div>
+                {/* ... resto del loading y botón cargar más ... */}
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
@@ -300,7 +348,18 @@ export default function Home() {
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
                   {games.map((game) => (
-                    <div key={game.id} className="space-y-4">
+                    <div key={game.id} className="space-y-4 relative">
+                      {/* ESTRELLA EN PORTADA */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(game.id);
+                        }}
+                        className="absolute top-2 right-2 z-10 bg-black/70 rounded-full p-2 hover:scale-125 transition-all"
+                      >
+                        {isFavorite(game.id) ? 'Filled Star' : 'Empty Star'}
+                      </button>
+
                       <div onClick={() => handleSelect(game, games)} className="cursor-pointer group transform hover:scale-105 transition-all duration-300">
                         <div className="relative overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
                           <Image
@@ -319,6 +378,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+                {/* ... igual que antes ... */}
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
@@ -334,11 +394,24 @@ export default function Home() {
           </>
         )}
 
+        {/* DETALLE DEL JUEGO */}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            <button onClick={() => setViewMode('list')} className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
-              Volver al listado
-            </button>
+            <div className="flex justify-between items-center mb-6">
+              <button onClick={() => setViewMode('list')} className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
+                Volver al listado
+              </button>
+
+              {/* ESTRELLA GRANDE EN FICHA */}
+              <button
+                onClick={() => toggleFavorite(selectedGame.id)}
+                className="text-6xl hover:scale-110 transition-all"
+              >
+                {isFavorite(selectedGame.id) ? 'Filled Star' : 'Empty Star'}
+              </button>
+            </div>
+
+            {/* TODO TU CÓDIGO DE DETALLES SIGUE 100% IGUAL */}
             {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
             {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
