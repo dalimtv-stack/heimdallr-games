@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { Heart, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
@@ -109,16 +110,14 @@ export default function Home() {
   const [showUpdates, setShowUpdates] = useState(false);
   const [nextGame, setNextGame] = useState(null);
 
-  // ==== FAVORITOS (NUEVO) ====
+  // ==== FAVORITOS ====
   const [favorites, setFavorites] = useState<string[]>([]);
 
-  // Cargar favoritos al iniciar
   useEffect(() => {
     const saved = localStorage.getItem('heimdallr_favorites');
     if (saved) setFavorites(JSON.parse(saved));
   }, []);
 
-  // Guardar cada vez que cambien
   useEffect(() => {
     localStorage.setItem('heimdallr_favorites', JSON.stringify(favorites));
   }, [favorites]);
@@ -177,7 +176,6 @@ export default function Home() {
       const data = await res.json();
       const newGames = Array.isArray(data.games) ? data.games : [];
 
-      // FILTRADO DE FAVORITOS (si estamos en la pestaña favoritos)
       const filteredGames = tab === 'favoritos'
         ? newGames.filter(game => favorites.includes(game.id))
         : newGames;
@@ -260,15 +258,15 @@ export default function Home() {
           Heimdallr Games
         </h1>
 
-        {/* PESTAÑAS + FAVORITOS CON CONTADOR */}
+        {/* PESTAÑAS + FAVORITOS */}
         <div className="mb-8 flex justify-center gap-2 flex-wrap">
           {[
-            { key: 'novedades', label: 'Novedades' },
+            { key: 'nOVEDADES', label: 'Novedades' },
             { key: 'populares_mes', label: 'Populares (mes)' },
             { key: 'populares_ano', label: 'Populares (año)' },
             { key: 'todos_az', label: 'Todos (A-Z)' },
             { key: 'buscador', label: 'Buscador' },
-            { key: 'favoritos', label: `Mis favoritos ❤️ (${favorites.length})` }, // NUEVA PESTAÑA
+            { key: 'favoritos', label: `Mis favoritos (${favorites.length})` },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -301,7 +299,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* LISTADO DE JUEGOS */}
+        {/* LISTADO */}
         {viewMode === 'list' && (
           <>
             {(tab === 'todos_az' || tab === 'buscador' || tab === 'favoritos') ? (
@@ -312,27 +310,28 @@ export default function Home() {
                       key={game.id}
                       className="group cursor-pointer bg-gray-800/60 hover:bg-gray-700 rounded-xl p-6 transition-all duration-200 border border-gray-700 hover:border-yellow-500/60 shadow-lg hover:shadow-yellow-500/10 relative"
                     >
-                      {/* ESTRELLA FAVORITOS EN LISTA A-Z / FAVORITOS */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleFavorite(game.id);
                         }}
-                        className="absolute top-4 right-6 text-3xl"
+                        className="absolute top-4 right-6"
                       >
-                        {isFavorite(game.id) ? 'Filled Star' : 'Empty Star'}
+                        <Star
+                          className={`w-9 h-9 transition-all ${isFavorite(game.id) ? 'fill-yellow-400 text-yellow-400 drop-shadow-lg' : 'text-gray-500 hover:text-yellow-400'}`}
+                        />
                       </button>
 
                       <h3
                         onClick={() => handleSelect(game, games)}
-                        className="text-2xl font-bold text-yellow-400 group-hover:text-yellow-300 transition pr-12"
+                        className="text-2xl font-bold text-yellow-400 group-hover:text-yellow-300 transition pr-16"
                       >
                         {game.title}
                       </h3>
                     </div>
                   ))}
                 </div>
-                {/* ... resto del loading y botón cargar más ... */}
+
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
@@ -349,7 +348,6 @@ export default function Home() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
                   {games.map((game) => (
                     <div key={game.id} className="space-y-4 relative">
-                      {/* ESTRELLA EN PORTADA */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -357,7 +355,9 @@ export default function Home() {
                         }}
                         className="absolute top-2 right-2 z-10 bg-black/70 rounded-full p-2 hover:scale-125 transition-all"
                       >
-                        {isFavorite(game.id) ? 'Filled Star' : 'Empty Star'}
+                        <Star
+                          className={`w-8 h-8 ${isFavorite(game.id) ? 'fill-yellow-400 text-yellow-400 drop-shadow-lg' : 'text-white hover:text-yellow-400'}`}
+                        />
                       </button>
 
                       <div onClick={() => handleSelect(game, games)} className="cursor-pointer group transform hover:scale-105 transition-all duration-300">
@@ -378,7 +378,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                {/* ... igual que antes ... */}
+
                 {loading && games.length === 0 && (
                   <p className="text-center text-3xl text-yellow-400 mt-20">Cargando juegos...</p>
                 )}
@@ -402,16 +402,16 @@ export default function Home() {
                 Volver al listado
               </button>
 
-              {/* ESTRELLA GRANDE EN FICHA */}
               <button
                 onClick={() => toggleFavorite(selectedGame.id)}
-                className="text-6xl hover:scale-110 transition-all"
+                className="hover:scale-110 transition-all"
               >
-                {isFavorite(selectedGame.id) ? 'Filled Star' : 'Empty Star'}
+                <Heart
+                  className={`w-16 h-16 drop-shadow-2xl ${isFavorite(selectedGame.id) ? 'fill-red-500 text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                />
               </button>
             </div>
 
-            {/* TODO TU CÓDIGO DE DETALLES SIGUE 100% IGUAL */}
             {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
             {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
@@ -457,7 +457,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* CAPTURAS + TRÁILER */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">Capturas del juego</h3>
@@ -482,7 +481,6 @@ export default function Home() {
                         </>
                       );
                     })()}
-
                     {selectedDetails.trailerVideo && (
                       <div className="mt-10 max-w-4xl mx-auto">
                         <h4 className="text-xl font-bold text-yellow-400 mb-4 text-center">Tráiler del juego</h4>
@@ -505,7 +503,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* === ACTUALIZACIONES – VERSIÓN FINAL, SIMPLE Y PERFECTA === */}
                 {selectedDetails.updatesHtml && (
                   <div className="mt-6">
                     <button
@@ -515,18 +512,14 @@ export default function Home() {
                       Actualizaciones del juego
                       <span>{showUpdates ? '▲' : '▼'}</span>
                     </button>
-                
                     {showUpdates && (
                       <div className="mt-2 bg-gray-900/80 border border-green-600/40 rounded-lg p-6 text-sm leading-relaxed text-gray-200 overflow-x-auto">
                         <div
                           className="whitespace-normal break-words"
                           dangerouslySetInnerHTML={{
                             __html: selectedDetails.updatesHtml
-                              // 1. Quitamos el <h3> original para que no se repita
                               .replace(/<h3[^>]*>Game Updates[^<]*<\/h3>/gi, '')
-                              // 2. Quitamos TODOS los style="" (eran los que rompían todo)
                               .replace(/style="[^"]*"/gi, '')
-                              // 3. Forzamos que los enlaces se vean bien
                               .replace(/<a /gi, '<a class="text-yellow-400 hover:text-yellow-300 underline" ')
                           }}
                         />
@@ -535,7 +528,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Características del repack */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
@@ -551,7 +543,6 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Información del juego */}
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
@@ -592,10 +583,10 @@ export default function Home() {
                     }}
                     className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-500 transition whitespace-nowrap"
                   >
-                    <span className="text-xl">←</span>
+                    <ChevronLeft className="w-6 h-6" />
                     <span>Atrás</span>
                   </button>
-                
+
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -609,10 +600,10 @@ export default function Home() {
                     className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
                   >
                     <span>Siguiente</span>
-                    <span className="text-xl">→</span>
+                    <ChevronRight className="w-6 h-6" />
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
-                
+
                   {games.length > 0 &&
                     games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
                     !hasMore && (
