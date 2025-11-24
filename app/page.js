@@ -122,7 +122,7 @@ export default function Home() {
     localStorage.setItem('heimdallr_favorites', JSON.stringify(favorites));
   }, [favorites]);
 
-  const toggleFavorite = (gameId: string) => {
+  const toggleFavorite = (gameId) => {
     setFavorites(prev =>
       prev.includes(gameId)
         ? prev.filter(id => id !== gameId)
