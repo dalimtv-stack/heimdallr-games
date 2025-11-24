@@ -12,7 +12,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "axios": "^1.7.0",
-    "cheerio": "^1.0.0-rc.12"
+    "cheerio": "^1.0.0-rc.12",
+    "lucide-react": "^0.309.0"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.0",
