@@ -111,7 +111,7 @@ export default function Home() {
   const [nextGame, setNextGame] = useState(null); // ← SIN TIPOS → 100% JS PURO
 
   // ==== FAVORITOS ====
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('heimdallr_favorites');
