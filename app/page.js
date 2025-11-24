@@ -130,7 +130,7 @@ export default function Home() {
     );
   };
 
-  const isFavorite = (gameId: string) => favorites.includes(gameId);
+  const isFavorite = (gameId) => favorites.includes(gameId);
 
   // ==== VISOR ====
   const [viewerOpen, setViewerOpen] = useState(false);
