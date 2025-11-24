@@ -108,7 +108,7 @@ export default function Home() {
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showUpdates, setShowUpdates] = useState(false);
-  const [nextGame, setNextGame] = useState(null);
+  const [nextGame, setNextGame] = useState<any | null>(null);
 
   // ==== FAVORITOS ====
   const [favorites, setFavorites] = useState<string[]>([]);
