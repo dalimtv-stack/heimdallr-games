@@ -335,14 +335,18 @@ export default function Home() {
         )}
 
         {viewMode === 'detail' && selectedGame && (
-          <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            <button onClick={() => setViewMode('list')} className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
-              Volver al listado
-            </button>
+          <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl relative">
+            {/* Botón Volver al listado CENTRADO */}
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2">
+              <button onClick={() => setViewMode('list')} className="px-8 py-3 bg-yellow-500 text-black font-bold rounded-lg shadow-xl hover:bg-yellow-400 transition">
+                Volver al listado
+              </button>
+            </div>
+
             {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
             {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
-              <div className="space-y-6">
+              <div className="space-y-6 pt-8"> {/* pt-8 para compensar el botón superior */}
                 <div className="text-center space-y-6">
                   <h2 className="text-4xl md:text-5xl font-bold text-yellow-400 leading-tight">
                     {selectedDetails.title && !selectedDetails.title.includes('FitGirl Repacks')
@@ -360,7 +364,6 @@ export default function Home() {
                     />
                   </div>
                 </div>
-
                 <div className="text-sm space-y-2">
                   <p><strong>Géneros:</strong> {selectedDetails.genres || 'N/A'}</p>
                   <p><strong>Compañía:</strong> {selectedDetails.company || 'N/A'}</p>
@@ -383,7 +386,6 @@ export default function Home() {
                     ) : <p>N/A</p>}
                   </div>
                 </div>
-
                 {/* CAPTURAS + TRÁILER */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
@@ -409,7 +411,6 @@ export default function Home() {
                         </>
                       );
                     })()}
-
                     {selectedDetails.trailerVideo && (
                       <div className="mt-10 max-w-4xl mx-auto">
                         <h4 className="text-xl font-bold text-yellow-400 mb-4 text-center">Tráiler del juego</h4>
@@ -431,7 +432,6 @@ export default function Home() {
                     )}
                   </div>
                 )}
-
                 {/* === ACTUALIZACIONES – VERSIÓN FINAL, SIMPLE Y PERFECTA === */}
                 {selectedDetails.updatesHtml && (
                   <div className="mt-6">
@@ -442,7 +442,7 @@ export default function Home() {
                       Actualizaciones del juego
                       <span>{showUpdates ? '▲' : '▼'}</span>
                     </button>
-                
+               
                     {showUpdates && (
                       <div className="mt-2 bg-gray-900/80 border border-green-600/40 rounded-lg p-6 text-sm leading-relaxed text-gray-200 overflow-x-auto">
                         <div
@@ -461,7 +461,6 @@ export default function Home() {
                     )}
                   </div>
                 )}
-
                 {/* Características del repack */}
                 <div>
                   <button
@@ -477,7 +476,6 @@ export default function Home() {
                     </p>
                   )}
                 </div>
-
                 {/* Información del juego */}
                 <div>
                   <button
@@ -493,7 +491,6 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-
                 {selectedDetails.csrinLink && (
                   <>
                     <button onClick={() => sendMagnetToQB(selectedDetails.csrinLink)} className="mt-6 block w-full text-center py-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold">
@@ -504,8 +501,8 @@ export default function Home() {
                     )}
                   </>
                 )}
-
-                <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
+                {/* NAVEGACIÓN INFERIOR */}
+                <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -522,33 +519,35 @@ export default function Home() {
                     <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
-                
-                  <button
-                    onClick={() => {
-                      const currentIndex = games.findIndex(g => g.id === selectedGame.id);
-                      const nextGame = games[currentIndex + 1];
-                      if (nextGame) {
-                        handleSelect(nextGame, games);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }
-                    }}
-                    disabled={loading || games.findIndex(g => g.id === selectedGame.id) === games.length - 1}
-                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
-                  >
-                    <span>Siguiente</span>
-                    <span className="text-xl">→</span>
-                    {loading && <span className="ml-2 animate-pulse">…</span>}
-                  </button>
-                
-                  {games.length > 0 &&
-                    games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
-                    !hasMore && (
-                      <div className="text-gray-500 text-sm italic ml-4">
-                        Último juego de la lista
-                      </div>
-                    )}
-                </div>
 
+                  {/* Botón Siguiente PEGADO A LA DERECHA */}
+                  <div className="flex items-center gap-4 ml-auto">
+                    <button
+                      onClick={() => {
+                        const currentIndex = games.findIndex(g => g.id === selectedGame.id);
+                        const nextGame = games[currentIndex + 1];
+                        if (nextGame) {
+                          handleSelect(nextGame, games);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
+                      disabled={loading || games.findIndex(g => g.id === selectedGame.id) === games.length - 1}
+                      className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
+                    >
+                      <span>Siguiente</span>
+                      <span className="text-xl">→</span>
+                      {loading && <span className="ml-2 animate-pulse">…</span>}
+                    </button>
+
+                    {games.length > 0 &&
+                      games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
+                      !hasMore && (
+                        <div className="text-gray-500 text-sm italic">
+                          Último juego de la lista
+                        </div>
+                      )}
+                  </div>
+                </div>
                 <div className="text-center">
                   <span className="text-gray-400 text-sm mr-2">Fuente:</span>
                   <a
@@ -564,7 +563,6 @@ export default function Home() {
             )}
           </div>
         )}
-
         {viewerOpen && (
           <MediaViewer media={viewerMedia} startIndex={viewerStartIndex} onClose={() => setViewerOpen(false)} />
         )}
