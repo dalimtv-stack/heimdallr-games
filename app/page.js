@@ -523,7 +523,7 @@ export default function Home() {
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
                   {games.length > 0 &&
-                    games.findIndex(g => in selectedGame.id) === games.length - 1 &&
+                    games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
                     !hasMore && (
                       <div className="text-gray-500 text-sm italic ml-4">
                         Último juego de la lista
