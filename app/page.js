@@ -171,7 +171,6 @@ export default function Home() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     setGames([]);
     setPage(1);
@@ -183,7 +182,6 @@ export default function Home() {
     setLoading(true);
     fetchGames(true);
   }, [tab, search]);
-
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
@@ -193,9 +191,7 @@ export default function Home() {
     setNextGame(null);
     fetchGames(true);
   };
-
   const loadMore = () => fetchGames();
-
   const handleSelect = async (game, currentList = games) => {
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
@@ -211,7 +207,6 @@ export default function Home() {
       setSelectedDetails({ error: true });
     }
   };
-
   const resetToHome = () => {
     setSearch('');
     setTab('novedades');
@@ -222,14 +217,12 @@ export default function Home() {
     setNextGame(null);
     fetchGames(true);
   };
-
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 onClick={resetToHome} className="text-5xl font-bold text-center mb-8 text-yellow-400 cursor-pointer hover:text-yellow-300 transition select-none">
           Heimdallr Games
         </h1>
-
         <div className="mb-8 flex justify-center gap-2 flex-wrap">
           {[
             { key: 'novedades', label: 'Novedades' },
@@ -249,7 +242,6 @@ export default function Home() {
             </button>
           ))}
         </div>
-
         {tab === 'buscador' && viewMode === 'list' && (
           <div className="max-w-2xl mx-auto mb-12 px-4">
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
@@ -267,7 +259,6 @@ export default function Home() {
             </form>
           </div>
         )}
-
         {viewMode === 'list' && (
           <>
             {(tab === 'todos_az' || tab === 'buscador') ? (
@@ -333,17 +324,15 @@ export default function Home() {
             )}
           </>
         )}
-
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            
-            {/* Botón Volver al listado - Arriba, centrado en su zona */}
+            {/* Botón Volver al listado - ARRIBA CENTRADO */}
             <div className="flex justify-center mb-6">
               <button onClick={() => setViewMode('list')} className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
                 Volver al listado
               </button>
             </div>
-        
+
             {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
             {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
@@ -387,7 +376,6 @@ export default function Home() {
                     ) : <p>N/A</p>}
                   </div>
                 </div>
-             
                 {/* CAPTURAS + TRÁILER */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
@@ -444,7 +432,6 @@ export default function Home() {
                       Actualizaciones del juego
                       <span>{showUpdates ? '▲' : '▼'}</span>
                     </button>
-               
                     {showUpdates && (
                       <div className="mt-2 bg-gray-900/80 border border-green-600/40 rounded-lg p-6 text-sm leading-relaxed text-gray-200 overflow-x-auto">
                         <div
@@ -463,7 +450,6 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                {/* Características del repack */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
@@ -478,7 +464,6 @@ export default function Home() {
                     </p>
                   )}
                 </div>
-                {/* Información del juego */}
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
@@ -504,7 +489,7 @@ export default function Home() {
                   </>
                 )}
                 {/* NAVEGACIÓN INFERIOR */}
-                <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+                <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -521,51 +506,47 @@ export default function Home() {
                     <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
+                  <button
+                    onClick={() => {
+                      const currentIndex = games.findIndex(g => g.id === selectedGame.id);
+                      const nextGame = games[currentIndex + 1];
+                      if (nextGame) {
+                        handleSelect(nextGame, games);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                    disabled={loading || games.findIndex(g => g.id === selectedGame.id) === games.length - 1}
+                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
+                  >
+                    <span>Siguiente</span>
+                    <span className="text-xl">→</span>
+                    {loading && <span className="ml-2 animate-pulse">…</span>}
+                  </button>
+                  {games.length > 0 &&
+                    games.findIndex(g => in selectedGame.id) === games.length - 1 &&
+                    !hasMore && (
+                      <div className="text-gray-500 text-sm italic ml-4">
+                        Último juego de la lista
+                      </div>
+                    )}
+                </div>
 
-                  {/* Botón Siguiente PEGADO A LA DERECHA */}
-                  <div className="flex items-center gap-4 ml-auto">
-                    <button
-                      onClick={() => {
-                        const currentIndex = games.findIndex(g => g.id === selectedGame.id);
-                        const nextGame = games[currentIndex + 1];
-                        if (nextGame) {
-                          handleSelect(nextGame, games);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      disabled={loading || games.findIndex(g => g.id === selectedGame.id) === games.length - 1}
-                      className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
-                    >
-                      <span>Siguiente</span>
-                      <span className="text-xl">→</span>
-                      {loading && <span className="ml-2 animate-pulse">…</span>}
-                    </button>
+                {/* Botón Volver al listado - ABAJO CENTRADO */}
+                <div className="mt-8 flex justify-center">
+                  <button onClick={() => setViewMode('list')} className="px-8 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition">
+                    Volver al listado
+                  </button>
+                </div>
 
-                    {games.length > 0 &&
-                      games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
-                      !hasMore && (
-                        <div className="text-gray-500 text-sm italic">
-                          Último juego de la lista
-                        </div>
-                      )}
-                  </div>
-          
-                  {/* Segundo botón "Volver al listado" - CENTRADO debajo de los botones de navegación */}
-                  <div className="mt-6 flex justify-center">
-                    <button onClick={() => setViewMode('list')} className="px-8 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition">
-                      Volver al listado
-                    </button>
-                  </div>
-          
-                  <div className="text-center mt-6">
-                    <span className="text-gray-400 text-sm mr-2">Fuente:</span>
-                    <a
-                      href={selectedGame.postUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-yellow-400 hover:text-yellow-300 underline transition font-medium break-all"
-                    >
-                      FitGirl Repacks
+                <div className="text-center mt-6">
+                  <span className="text-gray-400 text-sm mr-2">Fuente:</span>
+                  <a
+                    href={selectedGame.postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-yellow-400 hover:text-yellow-300 underline transition font-medium break-all"
+                  >
+                    FitGirl Repacks
                   </a>
                 </div>
               </div>
