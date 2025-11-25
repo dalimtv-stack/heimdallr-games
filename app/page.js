@@ -489,7 +489,7 @@ export default function Home() {
                   </>
                 )}
                 {/* NAVEGACIÓN INFERIOR */}
-                <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
+                <div className="mt-8 flex flex-wrap gap-4 justify-between items-center w-full">
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
