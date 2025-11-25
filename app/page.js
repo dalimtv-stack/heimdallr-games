@@ -335,18 +335,19 @@ export default function Home() {
         )}
 
         {viewMode === 'detail' && selectedGame && (
-          <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl relative">
-            {/* Botón Volver al listado CENTRADO */}
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2">
-              <button onClick={() => setViewMode('list')} className="px-8 py-3 bg-yellow-500 text-black font-bold rounded-lg shadow-xl hover:bg-yellow-400 transition">
+          <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
+            
+            {/* Botón Volver al listado - Arriba, centrado en su zona */}
+            <div className="flex justify-center mb-6">
+              <button onClick={() => setViewMode('list')} className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
                 Volver al listado
               </button>
             </div>
-
+        
             {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
             {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
-              <div className="space-y-6 pt-8"> {/* pt-8 para compensar el botón superior */}
+              <div className="space-y-6">
                 <div className="text-center space-y-6">
                   <h2 className="text-4xl md:text-5xl font-bold text-yellow-400 leading-tight">
                     {selectedDetails.title && !selectedDetails.title.includes('FitGirl Repacks')
@@ -386,6 +387,7 @@ export default function Home() {
                     ) : <p>N/A</p>}
                   </div>
                 </div>
+             
                 {/* CAPTURAS + TRÁILER */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
@@ -547,16 +549,23 @@ export default function Home() {
                         </div>
                       )}
                   </div>
-                </div>
-                <div className="text-center">
-                  <span className="text-gray-400 text-sm mr-2">Fuente:</span>
-                  <a
-                    href={selectedGame.postUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-yellow-400 hover:text-yellow-300 underline transition font-medium break-all"
-                  >
-                    FitGirl Repacks
+          
+                  {/* Segundo botón "Volver al listado" - CENTRADO debajo de los botones de navegación */}
+                  <div className="mt-6 flex justify-center">
+                    <button onClick={() => setViewMode('list')} className="px-8 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition">
+                      Volver al listado
+                    </button>
+                  </div>
+          
+                  <div className="text-center mt-6">
+                    <span className="text-gray-400 text-sm mr-2">Fuente:</span>
+                    <a
+                      href={selectedGame.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-yellow-400 hover:text-yellow-300 underline transition font-medium break-all"
+                    >
+                      FitGirl Repacks
                   </a>
                 </div>
               </div>
