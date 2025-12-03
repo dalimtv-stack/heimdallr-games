@@ -50,9 +50,12 @@ export async function GET(request) {
   	  // Anuncios y posts del sitio
   		lower.includes('call for donations') ||
   		lower.includes('11 years in service') ||
-  		lower.includes('hdd or ssd') ||
+  		lower.includes('12 years in service') ||
+  		lower.includes('13 years in service') ||
+  		lower.includes('hdd or ssd? version') ||
   		title.includes('→') ||
   		postUrl.includes('/a-call-for-donations') ||
+  		postUrl.includes('/fitgirl-repacks-11-years-in-service') ||
   
   		// === CONTENIDO +18 / HENTAI / EROGE (filtrado total) ===
   		lower.includes('genesis order') ||
