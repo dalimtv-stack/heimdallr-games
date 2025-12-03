@@ -49,8 +49,8 @@ export async function GET(request) {
       return (
   	  // Anuncios y posts del sitio
   		lower.includes('call for donations') ||
-  		lower.includes('fitgirl repacks – 11 years in service') ||
-  		lower.includes('hdd or ssd? version') ||
+  		lower.includes('11 years in service') ||
+  		lower.includes('hdd or ssd') ||
   		title.includes('→') ||
   		postUrl.includes('/a-call-for-donations') ||
   
