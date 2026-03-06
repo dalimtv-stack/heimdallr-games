@@ -1,8 +1,7 @@
 // app/[...path]/page.tsx
 'use client';
 
-import { useEffect } from 'react';
-import Home from '../page'; // Importa tu componente Home actual (el de app/page.js)
+import Home from '../page';
 
 export default function DynamicPage({ params }) {
   const pathSegments = params.path || [];
@@ -17,7 +16,7 @@ export default function DynamicPage({ params }) {
   };
 
   const initialTab = tabMap[path] || 'novedades';
-  const isDetail = path && !tabMap[path]; // Si no es una pestaña conocida → es detalle de juego
+  const isDetail = path && !tabMap[path]; // Si no es pestaña conocida → detalle de juego
 
   return (
     <Home
@@ -26,10 +25,4 @@ export default function DynamicPage({ params }) {
       initialViewMode={isDetail ? 'detail' : 'list'}
     />
   );
-}
-
-// Opcional: para mejorar SEO y pre-carga (puedes omitir si quieres)
-export async function generateStaticParams() {
-  // Puedes dejar vacío o generar algunos slugs comunes si quieres SSG parcial
-  return [];
 }
