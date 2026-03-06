@@ -1,4 +1,4 @@
-// app/[...path]/page.tsx
+// app/[...path]/page.js
 'use client';
 
 import Home from '../page';
@@ -16,7 +16,7 @@ export default function DynamicPage({ params }) {
   };
 
   const initialTab = tabMap[path] || 'novedades';
-  const isDetail = path && !tabMap[path]; // Si no es pestaña conocida → detalle de juego
+  const isDetail = path && !tabMap[path]; // Si no es pestaña conocida → detalle
 
   return (
     <Home
