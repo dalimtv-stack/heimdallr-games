@@ -106,17 +106,19 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [showUpdates, setShowUpdates] = useState(false); // NUEVO
+  const [showUpdates, setShowUpdates] = useState(false);
   const [nextGame, setNextGame] = useState(null);
-  // ==== VISOR ====
+
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerMedia, setViewerMedia] = useState([]);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
+
   const openViewer = (mediaArray, startIdx = 0) => {
     setViewerMedia(mediaArray);
     setViewerStartIndex(startIdx);
     setViewerOpen(true);
   };
+
   const fetchRealCover = async (game) => {
     if (tab !== 'buscador' || game.cover) return;
     try {
@@ -131,6 +133,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
       console.log('No se pudo cargar portada para:', game.title);
     }
   };
+
   const fetchGames = async (reset = false) => {
     if (tab === 'buscador' && !search.trim()) {
       setGames([]);
@@ -167,9 +170,11 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
       setLoading(false);
     }
   };
-  useEffect(() => {
-    if (viewMode === 'detail') return; // ← FIX: no resetear si estamos en detalle
 
+  useEffect(() => {
+    if (viewMode === 'detail') return; // No resetear si estamos en detalle
+
+    console.log('Reset useEffect ejecutado - tab:', tab, 'viewMode:', viewMode);
     setGames([]);
     setPage(1);
     setHasMore(true);
@@ -180,6 +185,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     setLoading(true);
     fetchGames(true);
   }, [tab, search, viewMode]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
@@ -189,14 +195,17 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     setNextGame(null);
     fetchGames(true);
   };
+
   const loadMore = () => fetchGames();
+
   const handleSelect = async (game, currentList = games) => {
+    console.log('handleSelect llamado - game:', game.title, 'slug:', game.postUrl.split('/').pop());
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
     setViewMode('detail');
     const slug = game.postUrl.split('/').filter(Boolean).pop() || '';
     router.push(`/${slug}`);
-    window.scrollTo({ top: 0, behavior: 'instant' }); // FIX: scroll arriba para ver el detalle
+    window.scrollTo({ top: 0, behavior: 'instant' });
     const currentIndex = currentList.findIndex(g => g.id === game.id);
     const next = currentList[currentIndex + 1] || null;
     setNextGame(next);
@@ -205,9 +214,11 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
       const data = await res.json();
       setSelectedDetails(data);
     } catch (err) {
+      console.error('Error cargando detalle:', err);
       setSelectedDetails({ error: true });
     }
   };
+
   const resetToHome = () => {
     setSearch('');
     setTab('novedades');
@@ -219,6 +230,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     fetchGames(true);
     router.push('/');
   };
+
   useEffect(() => {
     const pathMap = {
       novedades: '/',
@@ -229,12 +241,15 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     const newPath = pathMap[tab] || '/';
     router.replace(newPath, { scroll: false });
   }, [tab]);
+
   useEffect(() => {
+    console.log('Detalle useEffect - initialViewMode:', initialViewMode, 'initialPath:', initialPath);
     if (initialViewMode === 'detail' && initialPath) {
       setLoading(true);
       fetch(`/api/details?url=https://fitgirl-repacks.site/${initialPath}/`)
         .then(res => res.json())
         .then(data => {
+          console.log('Detalle cargado OK:', data.title);
           setSelectedDetails(data);
           setSelectedGame({
             id: initialPath,
@@ -245,9 +260,13 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
           setViewMode('detail');
           setLoading(false);
         })
-        .catch(() => setLoading(false));
+        .catch(err => {
+          console.error('Error fetch detalle desde URL:', err);
+          setLoading(false);
+        });
     }
   }, [initialPath, initialViewMode, games]);
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -473,7 +492,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                       Actualizaciones del juego
                       <span>{showUpdates ? '▲' : '▼'}</span>
                     </button>
-               
                     {showUpdates && (
                       <div className="mt-2 bg-gray-900/80 border border-green-600/40 rounded-lg p-6 text-sm leading-relaxed text-gray-200 overflow-x-auto">
                         <div
@@ -544,7 +562,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
-               
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -561,7 +578,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     <span className="text-xl">→</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
-               
                   {games.length > 0 &&
                     games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
                     !hasMore && (
