@@ -1,13 +1,10 @@
 // app/[...path]/page.js
-'use client';
-
 import Home from '../page';
 
 export default function DynamicPage({ params }) {
   const pathSegments = params.path || [];
   const path = pathSegments.join('/');
 
-  // Mapeo de rutas conocidas a pestañas internas
   const tabMap = {
     '': 'novedades',
     'pop-repacks': 'populares_mes',
@@ -16,7 +13,7 @@ export default function DynamicPage({ params }) {
   };
 
   const initialTab = tabMap[path] || 'novedades';
-  const isDetail = path && !tabMap[path]; // Si no es pestaña conocida → detalle
+  const isDetail = path && !tabMap[path];
 
   return (
     <Home
