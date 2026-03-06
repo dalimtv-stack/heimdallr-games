@@ -1,4 +1,6 @@
 // app/[...path]/page.js
+'use client';
+
 import Home from '../page';
 
 export default function DynamicPage({ params }) {
@@ -14,6 +16,8 @@ export default function DynamicPage({ params }) {
 
   const initialTab = tabMap[path] || 'novedades';
   const isDetail = path && !tabMap[path];
+
+  console.log('DynamicPage: path=', path, 'initialTab=', initialTab, 'isDetail=', isDetail);
 
   return (
     <Home
