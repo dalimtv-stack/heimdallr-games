@@ -106,18 +106,19 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [showUpdates, setShowUpdates] = useState(false);
+  const [showUpdates, setShowUpdates] = useState(false); // NUEVO
   const [nextGame, setNextGame] = useState(null);
-
+  // ==== VISOR ====
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerMedia, setViewerMedia] = useState([]);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
-
   const openViewer = (mediaArray, startIdx = 0) => {
     setViewerMedia(mediaArray);
     setViewerStartIndex(startIdx);
     setViewerOpen(true);
   };
+
+  console.log('Home montado - initialViewMode:', initialViewMode, 'initialPath:', initialPath, 'viewMode inicial:', viewMode); // LOG CLAVE
 
   const fetchRealCover = async (game) => {
     if (tab !== 'buscador' || game.cover) return;
@@ -133,7 +134,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
       console.log('No se pudo cargar portada para:', game.title);
     }
   };
-
   const fetchGames = async (reset = false) => {
     if (tab === 'buscador' && !search.trim()) {
       setGames([]);
@@ -170,9 +170,11 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
       setLoading(false);
     }
   };
-
   useEffect(() => {
-    if (viewMode === 'detail') return; // No resetear si estamos en detalle
+    if (viewMode === 'detail') {
+      console.log('Reset useEffect SKIPPED porque viewMode es detail');
+      return;
+    }
 
     console.log('Reset useEffect ejecutado - tab:', tab, 'viewMode:', viewMode);
     setGames([]);
@@ -185,7 +187,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     setLoading(true);
     fetchGames(true);
   }, [tab, search, viewMode]);
-
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
@@ -195,14 +196,13 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     setNextGame(null);
     fetchGames(true);
   };
-
   const loadMore = () => fetchGames();
-
   const handleSelect = async (game, currentList = games) => {
     console.log('handleSelect llamado - game:', game.title, 'slug:', game.postUrl.split('/').pop());
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
     setViewMode('detail');
+    console.log('viewMode cambiado a detail');
     const slug = game.postUrl.split('/').filter(Boolean).pop() || '';
     router.push(`/${slug}`);
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -218,7 +218,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
       setSelectedDetails({ error: true });
     }
   };
-
   const resetToHome = () => {
     setSearch('');
     setTab('novedades');
@@ -230,7 +229,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     fetchGames(true);
     router.push('/');
   };
-
   useEffect(() => {
     const pathMap = {
       novedades: '/',
@@ -241,15 +239,15 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     const newPath = pathMap[tab] || '/';
     router.replace(newPath, { scroll: false });
   }, [tab]);
-
   useEffect(() => {
     console.log('Detalle useEffect - initialViewMode:', initialViewMode, 'initialPath:', initialPath);
     if (initialViewMode === 'detail' && initialPath) {
+      console.log('Iniciando carga de detalle desde URL - path:', initialPath);
       setLoading(true);
       fetch(`/api/details?url=https://fitgirl-repacks.site/${initialPath}/`)
         .then(res => res.json())
         .then(data => {
-          console.log('Detalle cargado OK:', data.title);
+          console.log('Detalle cargado OK:', data.title || 'sin título');
           setSelectedDetails(data);
           setSelectedGame({
             id: initialPath,
@@ -266,7 +264,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
         });
     }
   }, [initialPath, initialViewMode, games]);
-
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
