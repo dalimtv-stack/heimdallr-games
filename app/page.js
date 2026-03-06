@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation'; // ← ÚNICA LÍNEA NUEVA AÑADIDA AL IMPORT
+import { useRouter } from 'next/navigation';
 
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
@@ -192,11 +192,8 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
     setViewMode('detail');
-
-    // Cambiar URL al detalle del juego
     const slug = game.postUrl.split('/').filter(Boolean).pop() || '';
     router.push(`/${slug}`);
-
     const currentIndex = currentList.findIndex(g => g.id === game.id);
     const next = currentList[currentIndex + 1] || null;
     setNextGame(next);
@@ -219,8 +216,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     fetchGames(true);
     router.push('/');
   };
-
-  // Sincronizar cambio de pestaña con URL
   useEffect(() => {
     const pathMap = {
       novedades: '/',
@@ -231,8 +226,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     const newPath = pathMap[tab] || '/';
     router.replace(newPath, { scroll: false });
   }, [tab]);
-
-  // Cargar detalle si venimos directamente por URL (ej: /grand-theft-auto-v/)
   useEffect(() => {
     if (initialViewMode === 'detail' && initialPath) {
       setLoading(true);
@@ -252,7 +245,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
         .catch(() => setLoading(false));
     }
   }, [initialPath, initialViewMode]);
-
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -277,6 +269,14 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                 setSearch('');
                 setPage(1);
                 fetchGames(true);
+                const path = {
+                  novedades: '/',
+                  populares_mes: '/pop-repacks',
+                  populares_ano: '/popular-repacks-of-the-year',
+                  todos_az: '/all-my-repacks-a-z',
+                  buscador: '/',
+                }[key] || '/';
+                router.push(path);
               }}
               className={`px-6 py-3 rounded-lg font-bold transition ${
                 tab === key ? 'bg-yellow-500 text-black' : 'bg-gray-800 hover:bg-gray-700'
@@ -416,7 +416,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     ) : <p>N/A</p>}
                   </div>
                 </div>
-                {/* CAPTURAS + TRÁILER */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">Capturas del juego</h3>
@@ -462,7 +461,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     )}
                   </div>
                 )}
-                {/* === ACTUALIZACIONES – VERSIÓN FINAL, SIMPLE Y PERFECTA === */}
                 {selectedDetails.updatesHtml && (
                   <div className="mt-6">
                     <button
@@ -479,11 +477,8 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                           className="whitespace-normal break-words"
                           dangerouslySetInnerHTML={{
                             __html: selectedDetails.updatesHtml
-                              // 1. Quitamos el <h3> original para que no se repita
                               .replace(/<h3[^>]*>Game Updates[^<]*<\/h3>/gi, '')
-                              // 2. Quitamos TODOS los style="" (eran los que rompían todo)
                               .replace(/style="[^"]*"/gi, '')
-                              // 3. Forzamos que los enlaces se vean bien
                               .replace(/<a /gi, '<a class="text-yellow-400 hover:text-yellow-300 underline" ')
                           }}
                         />
@@ -491,7 +486,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     )}
                   </div>
                 )}
-                {/* Características del repack */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
@@ -506,7 +500,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     </p>
                   )}
                 </div>
-                {/* Información del juego */}
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
