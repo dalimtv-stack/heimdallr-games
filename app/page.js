@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation'; // ← AÑADIDO PARA ROUTING
+import { useRouter } from 'next/navigation'; // ← ÚNICA LÍNEA NUEVA AÑADIDA AL IMPORT
 
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
@@ -194,7 +194,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     setViewMode('detail');
 
     // Cambiar URL al detalle del juego
-    const slug = game.postUrl.split('/').filter(Boolean).pop();
+    const slug = game.postUrl.split('/').filter(Boolean).pop() || '';
     router.push(`/${slug}`);
 
     const currentIndex = currentList.findIndex(g => g.id === game.id);
