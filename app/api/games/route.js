@@ -36,55 +36,56 @@ export async function GET(request) {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 20000,
     });
+
     const $ = cheerio.load(data);
     const games = [];
 
     // ==================== FUNCIÓN DE FILTRADO (solo para excluir anuncios) ====================
     const isNotAGamePost = (title, postUrl = '') => {
       const lower = title.toLowerCase()
-        .replace(/['’‘]/g, '')    // ← Elimina comillas y apóstrofes (tanto ' como ’)
-        .replace(/[-–—]/g, ' ')   // ← Convierte todo tipo de guiones en espacio
-        .replace(/\s+/g, ' ');    // ← Normaliza espacios
-    
+        .replace(/['’‘]/g, '') // ← Elimina comillas y apóstrofes (tanto ' como ’)
+        .replace(/[-–—]/g, ' ') // ← Convierte todo tipo de guiones en espacio
+        .replace(/\s+/g, ' '); // ← Normaliza espacios
+   
       return (
-  	  // Anuncios y posts del sitio
-  		lower.includes('call for donations') ||
-  		lower.includes('11 years in service') ||
-  		lower.includes('12 years in service') ||
-  		lower.includes('13 years in service') ||
-  		lower.includes('hdd or ssd? version') ||
-  		title.includes('→') ||
-  		postUrl.includes('/a-call-for-donations') ||
-  		postUrl.includes('/fitgirl-repacks-11-years-in-service') ||
-  
-  		// === CONTENIDO +18 / HENTAI / EROGE (filtrado total) ===
-  		lower.includes('genesis order') ||
-  		lower.includes('honey select') ||
-  		lower.includes('av director life') ||
-  		lower.includes('one more night + windows 7 fix') ||
-  		lower.includes('honeycome') ||
-  		lower.includes('repack update') ||
-  		lower.includes('nymphomaniac') ||
-  		lower.includes('lust n dead') ||
-  		lower.includes('roomgirl paradise') ||
-  		lower.includes('house party: supporter') ||
-  
-  		// Palabras clave genéricas de contenido adulto (muy efectivas)
-  		lower.includes('hentai') ||
-  		lower.includes('eroge') ||
-  		lower.includes('nude') ||
-  		lower.includes('sex') ||
-  		lower.includes('porn') ||
-  		lower.includes('lewd') ||
-  		lower.includes('nsfw') ||
-  		lower.includes('dojin') ||
-  		lower.includes('koikatsu') ||
-  		lower.includes('custom order maid') ||
-  		lower.includes('honey select 2') ||
-  		lower.includes('ai shoujo') ||
-  		lower.includes('cm3d2') ||
-  		lower.includes('sexy beach') ||
-  		lower.includes('nekopara') && lower.includes('extra') // Nekopara Extra es +18
+        // Anuncios y posts del sitio
+        lower.includes('call for donations') ||
+        lower.includes('11 years in service') ||
+        lower.includes('12 years in service') ||
+        lower.includes('13 years in service') ||
+        lower.includes('hdd or ssd? version') ||
+        title.includes('→') ||
+        postUrl.includes('/a-call-for-donations') ||
+        postUrl.includes('/fitgirl-repacks-11-years-in-service') ||
+ 
+        // === CONTENIDO +18 / HENTAI / EROGE (filtrado total) ===
+        lower.includes('genesis order') ||
+        lower.includes('honey select') ||
+        lower.includes('av director life') ||
+        lower.includes('one more night + windows 7 fix') ||
+        lower.includes('honeycome') ||
+        lower.includes('repack update') ||
+        lower.includes('nymphomaniac') ||
+        lower.includes('lust n dead') ||
+        lower.includes('roomgirl paradise') ||
+        lower.includes('house party: supporter') ||
+ 
+        // Palabras clave genéricas de contenido adulto (muy efectivas)
+        lower.includes('hentai') ||
+        lower.includes('eroge') ||
+        lower.includes('nude') ||
+        lower.includes('sex') ||
+        lower.includes('porn') ||
+        lower.includes('lewd') ||
+        lower.includes('nsfw') ||
+        lower.includes('dojin') ||
+        lower.includes('koikatsu') ||
+        lower.includes('custom order maid') ||
+        lower.includes('honey select 2') ||
+        lower.includes('ai shoujo') ||
+        lower.includes('cm3d2') ||
+        lower.includes('sexy beach') ||
+        lower.includes('nekopara') && lower.includes('extra') // Nekopara Extra es +18
       );
     };
 
@@ -109,7 +110,9 @@ export async function GET(request) {
         let cover = img.attr('src') || '';
         if (cover.includes('?resize=')) cover = cover.split('?resize=')[0];
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
-        games.push({ id, title, cover, postUrl });
+        const slug = postUrl.split('/').filter(Boolean).pop() || ''; // ← CAMBIO SOLICITADO
+
+        games.push({ id, title, cover, postUrl, slug }); // ← slug añadido aquí
       });
       return NextResponse.json({ games, hasMore: false });
     }
@@ -135,13 +138,15 @@ export async function GET(request) {
         let cover = img.attr('src') || '';
         if (cover.includes('?resize=')) cover = cover.split('?resize=')[0];
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
-        games.push({ id, title, cover, postUrl });
+        const slug = postUrl.split('/').filter(Boolean).pop() || ''; // ← CAMBIO SOLICITADO
+
+        games.push({ id, title, cover, postUrl, slug }); // ← slug añadido aquí
       });
       const hasMore = $('.pagination .next').length > 0;
       return NextResponse.json({ games, hasMore });
     }
 
-    // ==================== BÚSQUEDA + NOVEDADES + A-Z ====================
+    // ==================== A-Z ====================
     if (tab === 'todos_az') {
       $('#lcp_instance_0 li a').each((_, el) => {
         const a = $(el);
@@ -154,10 +159,12 @@ export async function GET(request) {
         if (isNotAGamePost(title, postUrl)) return;
 
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
-        games.push({ id, title, cover: '', postUrl });
+        const slug = postUrl.split('/').filter(Boolean).pop() || ''; // ← CAMBIO SOLICITADO
+
+        games.push({ id, title, cover: '', postUrl, slug }); // ← slug añadido aquí
       });
     } else {
-      // NOVEDADES + BÚSQUEDA
+      // ==================== NOVEDADES + BÚSQUEDA ====================
       $('article.post').each((_, el) => {
         const article = $(el);
         const link = article.find('h1.entry-title a, h2.entry-title a').first();
@@ -173,6 +180,8 @@ export async function GET(request) {
         const id = postUrl
           ? crypto.createHash('md5').update(postUrl).digest('hex')
           : Date.now().toString();
+        const slug = postUrl.split('/').filter(Boolean).pop() || ''; // ← CAMBIO SOLICITADO
+
         let cover = '';
         const img = article.find('img').first();
         if (img.length) {
@@ -182,7 +191,8 @@ export async function GET(request) {
         if (!cover) {
           cover = 'https://dummyimage.com/300x450/000000/ffffff.png&text=' + encodeURIComponent(title.slice(0, 15));
         }
-        games.push({ id, title, cover, postUrl });
+
+        games.push({ id, title, cover, postUrl, slug }); // ← slug añadido aquí
       });
     }
 
