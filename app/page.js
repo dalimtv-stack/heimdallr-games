@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation'; // ← AÑADIDO PARA ROUTING
 
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
@@ -28,7 +29,6 @@ function MarkdownText({ text }) {
     </>
   );
 }
-
 // ──────────────────────────────────────────────────────────────
 // VISOR DE CAPTURAS + TRÁILER
 // ──────────────────────────────────────────────────────────────
@@ -81,7 +81,6 @@ function MediaViewer({ media = [], startIndex = 0, onClose }) {
     </div>
   );
 }
-
 // ──────────────────────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────────────────────
@@ -93,33 +92,31 @@ async function sendMagnetToQB(magnet) {
     alert('Error abriendo magnet: ' + err.message);
   }
 }
+export default function Home({ initialTab = 'novedades', initialPath = '', initialViewMode = 'list' }) {
+  const router = useRouter();
 
-export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  const [tab, setTab] = useState('novedades');
-  const [viewMode, setViewMode] = useState('list');
+  const [tab, setTab] = useState(initialTab);
+  const [viewMode, setViewMode] = useState(initialViewMode);
   const [selectedGame, setSelectedGame] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showUpdates, setShowUpdates] = useState(false); // NUEVO
   const [nextGame, setNextGame] = useState(null);
-
   // ==== VISOR ====
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerMedia, setViewerMedia] = useState([]);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
-
   const openViewer = (mediaArray, startIdx = 0) => {
     setViewerMedia(mediaArray);
     setViewerStartIndex(startIdx);
     setViewerOpen(true);
   };
-
   const fetchRealCover = async (game) => {
     if (tab !== 'buscador' || game.cover) return;
     try {
@@ -134,7 +131,6 @@ export default function Home() {
       console.log('No se pudo cargar portada para:', game.title);
     }
   };
-
   const fetchGames = async (reset = false) => {
     if (tab === 'buscador' && !search.trim()) {
       setGames([]);
@@ -177,7 +173,7 @@ export default function Home() {
     setHasMore(true);
     setSelectedGame(null);
     setSelectedDetails(null);
-    setViewMode('list');
+    setViewMode(initialViewMode);
     setNextGame(null);
     setLoading(true);
     fetchGames(true);
@@ -196,6 +192,11 @@ export default function Home() {
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
     setViewMode('detail');
+
+    // Cambiar URL al detalle del juego
+    const slug = game.postUrl.split('/').filter(Boolean).pop();
+    router.push(`/${slug}`);
+
     const currentIndex = currentList.findIndex(g => g.id === game.id);
     const next = currentList[currentIndex + 1] || null;
     setNextGame(next);
@@ -216,7 +217,42 @@ export default function Home() {
     setViewMode('list');
     setNextGame(null);
     fetchGames(true);
+    router.push('/');
   };
+
+  // Sincronizar cambio de pestaña con URL
+  useEffect(() => {
+    const pathMap = {
+      novedades: '/',
+      populares_mes: '/pop-repacks',
+      populares_ano: '/popular-repacks-of-the-year',
+      todos_az: '/all-my-repacks-a-z',
+    };
+    const newPath = pathMap[tab] || '/';
+    router.replace(newPath, { scroll: false });
+  }, [tab]);
+
+  // Cargar detalle si venimos directamente por URL (ej: /grand-theft-auto-v/)
+  useEffect(() => {
+    if (initialViewMode === 'detail' && initialPath) {
+      setLoading(true);
+      fetch(`/api/details?url=https://fitgirl-repacks.site/${initialPath}/`)
+        .then(res => res.json())
+        .then(data => {
+          setSelectedDetails(data);
+          setSelectedGame({
+            id: initialPath,
+            title: data.title || initialPath.replace(/-/g, ' '),
+            postUrl: `https://fitgirl-repacks.site/${initialPath}/`,
+            cover: data.cover || '/placeholder-cover.jpg',
+          });
+          setViewMode('detail');
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }
+  }, [initialPath, initialViewMode]);
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -233,7 +269,15 @@ export default function Home() {
           ].map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setTab(key)}
+              onClick={() => {
+                setTab(key);
+                setViewMode('list');
+                setSelectedGame(null);
+                setSelectedDetails(null);
+                setSearch('');
+                setPage(1);
+                fetchGames(true);
+              }}
               className={`px-6 py-3 rounded-lg font-bold transition ${
                 tab === key ? 'bg-yellow-500 text-black' : 'bg-gray-800 hover:bg-gray-700'
               }`}
@@ -326,13 +370,9 @@ export default function Home() {
         )}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            {/* Botón Volver al listado - ARRIBA CENTRADO */}
-            <div className="flex justify-center mb-6">
-              <button onClick={() => setViewMode('list')} className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
-                Volver al listado
-              </button>
-            </div>
-
+            <button onClick={() => setViewMode('list')} className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
+              Volver al listado
+            </button>
             {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
             {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
@@ -432,6 +472,7 @@ export default function Home() {
                       Actualizaciones del juego
                       <span>{showUpdates ? '▲' : '▼'}</span>
                     </button>
+               
                     {showUpdates && (
                       <div className="mt-2 bg-gray-900/80 border border-green-600/40 rounded-lg p-6 text-sm leading-relaxed text-gray-200 overflow-x-auto">
                         <div
@@ -450,6 +491,7 @@ export default function Home() {
                     )}
                   </div>
                 )}
+                {/* Características del repack */}
                 <div>
                   <button
                     onClick={() => setShowRepack(!showRepack)}
@@ -464,6 +506,7 @@ export default function Home() {
                     </p>
                   )}
                 </div>
+                {/* Información del juego */}
                 <div>
                   <button
                     onClick={() => setShowInfo(!showInfo)}
@@ -488,8 +531,7 @@ export default function Home() {
                     )}
                   </>
                 )}
-                {/* NAVEGACIÓN INFERIOR */}
-                <div className="mt-8 flex flex-wrap gap-4 justify-between items-center w-full">
+                <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -506,6 +548,7 @@ export default function Home() {
                     <span className="text-xl">←</span>
                     <span>Atrás</span>
                   </button>
+               
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -522,6 +565,7 @@ export default function Home() {
                     <span className="text-xl">→</span>
                     {loading && <span className="ml-2 animate-pulse">…</span>}
                   </button>
+               
                   {games.length > 0 &&
                     games.findIndex(g => g.id === selectedGame.id) === games.length - 1 &&
                     !hasMore && (
@@ -530,15 +574,7 @@ export default function Home() {
                       </div>
                     )}
                 </div>
-
-                {/* Botón Volver al listado - ABAJO CENTRADO */}
-                <div className="mt-8 flex justify-center">
-                  <button onClick={() => setViewMode('list')} className="px-8 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition">
-                    Volver al listado
-                  </button>
-                </div>
-
-                <div className="text-center mt-6">
+                <div className="text-center">
                   <span className="text-gray-400 text-sm mr-2">Fuente:</span>
                   <a
                     href={selectedGame.postUrl}
