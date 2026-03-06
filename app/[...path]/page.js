@@ -4,8 +4,10 @@
 import Home from '../page';
 
 export default function DynamicPage({ params }) {
-  const pathSegments = params.path || [];
-  const path = pathSegments.join('/');
+  const path = params.path ? params.path.join('/') : '';
+
+  // Log para depurar
+  console.log('DynamicPage ejecutado - path completo:', path);
 
   const tabMap = {
     '': 'novedades',
@@ -14,10 +16,11 @@ export default function DynamicPage({ params }) {
     'all-my-repacks-a-z': 'todos_az',
   };
 
-  const initialTab = tabMap[path] || 'novedades';
-  const isDetail = path && !tabMap[path];
+  const isTab = tabMap[path];
+  const initialTab = isTab || 'novedades';
+  const isDetail = !!path && !isTab;
 
-  console.log('DynamicPage: path=', path, 'initialTab=', initialTab, 'isDetail=', isDetail);
+  console.log('DynamicPage - isDetail:', isDetail, 'initialTab:', initialTab, 'path:', path);
 
   return (
     <Home
