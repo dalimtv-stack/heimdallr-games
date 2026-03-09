@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 
 // ──────────────────────────────────────────────────────────────
 // Componente para mostrar negritas reales (solo **texto**)
@@ -29,6 +28,7 @@ function MarkdownText({ text }) {
     </>
   );
 }
+
 // ──────────────────────────────────────────────────────────────
 // VISOR DE CAPTURAS + TRÁILER
 // ──────────────────────────────────────────────────────────────
@@ -81,6 +81,7 @@ function MediaViewer({ media = [], startIndex = 0, onClose }) {
     </div>
   );
 }
+
 // ──────────────────────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────────────────────
@@ -92,33 +93,32 @@ async function sendMagnetToQB(magnet) {
     alert('Error abriendo magnet: ' + err.message);
   }
 }
-export default function Home({ initialTab = 'novedades', initialPath = '', initialViewMode = 'list' }) {
-  const router = useRouter();
 
+export default function Home() {
   const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  const [tab, setTab] = useState(initialTab);
-  const [viewMode, setViewMode] = useState(initialViewMode);
+  const [tab, setTab] = useState('novedades');
+  const [viewMode, setViewMode] = useState('list');
   const [selectedGame, setSelectedGame] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [showRepack, setShowRepack] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showUpdates, setShowUpdates] = useState(false); // NUEVO
   const [nextGame, setNextGame] = useState(null);
+
   // ==== VISOR ====
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerMedia, setViewerMedia] = useState([]);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
+
   const openViewer = (mediaArray, startIdx = 0) => {
     setViewerMedia(mediaArray);
     setViewerStartIndex(startIdx);
     setViewerOpen(true);
   };
-
-  console.log('Home montado - initialViewMode:', initialViewMode, 'initialPath:', initialPath, 'viewMode inicial:', viewMode); // LOG CLAVE
 
   const fetchRealCover = async (game) => {
     if (tab !== 'buscador' || game.cover) return;
@@ -134,6 +134,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
       console.log('No se pudo cargar portada para:', game.title);
     }
   };
+
   const fetchGames = async (reset = false) => {
     if (tab === 'buscador' && !search.trim()) {
       setGames([]);
@@ -171,12 +172,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     }
   };
   useEffect(() => {
-    if (viewMode === 'detail') {
-      console.log('Reset useEffect SKIPPED porque viewMode es detail');
-      return;
-    }
-
-    console.log('Reset useEffect ejecutado - tab:', tab, 'viewMode:', viewMode);
     setGames([]);
     setPage(1);
     setHasMore(true);
@@ -186,7 +181,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     setNextGame(null);
     setLoading(true);
     fetchGames(true);
-  }, [tab, search, viewMode]);
+  }, [tab, search]);
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
@@ -198,14 +193,9 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
   };
   const loadMore = () => fetchGames();
   const handleSelect = async (game, currentList = games) => {
-    console.log('handleSelect llamado - game:', game.title, 'slug:', game.postUrl.split('/').pop());
     setSelectedGame(game);
     setSelectedDetails({ loading: true });
     setViewMode('detail');
-    console.log('viewMode cambiado a detail');
-    const slug = game.postUrl.split('/').filter(Boolean).pop() || '';
-    router.push(`/${slug}`);
-    window.scrollTo({ top: 0, behavior: 'instant' });
     const currentIndex = currentList.findIndex(g => g.id === game.id);
     const next = currentList[currentIndex + 1] || null;
     setNextGame(next);
@@ -214,7 +204,6 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
       const data = await res.json();
       setSelectedDetails(data);
     } catch (err) {
-      console.error('Error cargando detalle:', err);
       setSelectedDetails({ error: true });
     }
   };
@@ -227,43 +216,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
     setViewMode('list');
     setNextGame(null);
     fetchGames(true);
-    router.push('/');
   };
-  useEffect(() => {
-    const pathMap = {
-      novedades: '/',
-      populares_mes: '/pop-repacks',
-      populares_ano: '/popular-repacks-of-the-year',
-      todos_az: '/all-my-repacks-a-z',
-    };
-    const newPath = pathMap[tab] || '/';
-    router.replace(newPath, { scroll: false });
-  }, [tab]);
-  useEffect(() => {
-    console.log('Detalle useEffect - initialViewMode:', initialViewMode, 'initialPath:', initialPath);
-    if (initialViewMode === 'detail' && initialPath) {
-      console.log('Iniciando carga de detalle desde URL - path:', initialPath);
-      setLoading(true);
-      fetch(`/api/details?url=https://fitgirl-repacks.site/${initialPath}/`)
-        .then(res => res.json())
-        .then(data => {
-          console.log('Detalle cargado OK:', data.title || 'sin título');
-          setSelectedDetails(data);
-          setSelectedGame({
-            id: initialPath,
-            title: data.title || initialPath.replace(/-/g, ' '),
-            postUrl: `https://fitgirl-repacks.site/${initialPath}/`,
-            cover: data.cover || '/placeholder-cover.jpg',
-          });
-          setViewMode('detail');
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error('Error fetch detalle desde URL:', err);
-          setLoading(false);
-        });
-    }
-  }, [initialPath, initialViewMode, games]);
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -280,23 +233,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
           ].map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => {
-                setTab(key);
-                setViewMode('list');
-                setSelectedGame(null);
-                setSelectedDetails(null);
-                setSearch('');
-                setPage(1);
-                fetchGames(true);
-                const pathMap = {
-                  novedades: '/',
-                  populares_mes: '/pop-repacks',
-                  populares_ano: '/popular-repacks-of-the-year',
-                  todos_az: '/all-my-repacks-a-z',
-                  buscador: '/',
-                };
-                router.push(pathMap[key] || '/');
-              }}
+              onClick={() => setTab(key)}
               className={`px-6 py-3 rounded-lg font-bold transition ${
                 tab === key ? 'bg-yellow-500 text-black' : 'bg-gray-800 hover:bg-gray-700'
               }`}
@@ -389,9 +326,13 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
         )}
         {viewMode === 'detail' && selectedGame && (
           <div className="mt-12 bg-gray-900 rounded-xl p-6 border-4 border-yellow-500 shadow-2xl">
-            <button onClick={() => setViewMode('list')} className="mb-6 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
-              Volver al listado
-            </button>
+            {/* Botón Volver al listado - ARRIBA CENTRADO */}
+            <div className="flex justify-center mb-6">
+              <button onClick={() => setViewMode('list')} className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg">
+                Volver al listado
+              </button>
+            </div>
+
             {selectedDetails?.loading && <p className="text-center text-yellow-400">Cargando detalles...</p>}
             {selectedDetails?.error && <p className="text-center text-red-400">Error al cargar detalles</p>}
             {selectedDetails && !selectedDetails.loading && !selectedDetails.error && (
@@ -435,6 +376,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     ) : <p>N/A</p>}
                   </div>
                 </div>
+                {/* CAPTURAS + TRÁILER */}
                 {selectedDetails.screenshots && selectedDetails.screenshots.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">Capturas del juego</h3>
@@ -480,6 +422,7 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     )}
                   </div>
                 )}
+                {/* === ACTUALIZACIONES – VERSIÓN FINAL, SIMPLE Y PERFECTA === */}
                 {selectedDetails.updatesHtml && (
                   <div className="mt-6">
                     <button
@@ -495,8 +438,11 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                           className="whitespace-normal break-words"
                           dangerouslySetInnerHTML={{
                             __html: selectedDetails.updatesHtml
+                              // 1. Quitamos el <h3> original para que no se repita
                               .replace(/<h3[^>]*>Game Updates[^<]*<\/h3>/gi, '')
+                              // 2. Quitamos TODOS los style="" (eran los que rompían todo)
                               .replace(/style="[^"]*"/gi, '')
+                              // 3. Forzamos que los enlaces se vean bien
                               .replace(/<a /gi, '<a class="text-yellow-400 hover:text-yellow-300 underline" ')
                           }}
                         />
@@ -542,7 +488,8 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                     )}
                   </>
                 )}
-                <div className="mt-8 flex flex-wrap gap-4 justify-start items-center">
+                {/* NAVEGACIÓN INFERIOR */}
+                <div className="mt-8 flex flex-wrap gap-4 justify-between items-center w-full">
                   <button
                     onClick={() => {
                       const currentIndex = games.findIndex(g => g.id === selectedGame.id);
@@ -583,7 +530,15 @@ export default function Home({ initialTab = 'novedades', initialPath = '', initi
                       </div>
                     )}
                 </div>
-                <div className="text-center">
+
+                {/* Botón Volver al listado - ABAJO CENTRADO */}
+                <div className="mt-8 flex justify-center">
+                  <button onClick={() => setViewMode('list')} className="px-8 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition">
+                    Volver al listado
+                  </button>
+                </div>
+
+                <div className="text-center mt-6">
                   <span className="text-gray-400 text-sm mr-2">Fuente:</span>
                   <a
                     href={selectedGame.postUrl}
