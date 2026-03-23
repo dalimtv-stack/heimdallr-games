@@ -18,7 +18,7 @@ const isNotAGamePost = (title, postUrl = '') => {
     .replace(/['’‘]/g, '') // ← Elimina comillas y apóstrofes (tanto ' como ’)
     .replace(/[-–—]/g, ' ') // ← Convierte todo tipo de guiones en espacio
     .replace(/\s+/g, ' '); // ← Normaliza espacios
-  
+   
   return (
     // Anuncios y posts del sitio
     lower.includes('call for donations') ||
@@ -175,7 +175,7 @@ async function scrapeFromUrl(url, tab, page) {
  * @returns {Promise<{games: object[], hasMore: boolean}>}
  */
 export async function getGamesList({ tab = 'novedades', page = 1, searchQuery = '', favorites = [] }) {
-  
+   
     // --- Lógica de Favoritos (simula el POST) ---
     if (favorites.length > 0) {
         const allGames = [];
@@ -189,30 +189,12 @@ export async function getGamesList({ tab = 'novedades', page = 1, searchQuery = 
             hasMore = result.hasMore;
             currentPage++;
         }
-      
+       
         const favoriteGames = allGames.filter(game => favorites.includes(game.id));
         return { games: favoriteGames, hasMore: false };
     }
     // --- Lógica de Listas Estándar (simula el GET) ---
     let url = baseUrls[tab] || baseUrls.novedades;
-    if (tab === 'novedades' && page === 1) {
-        let allGames = [];
-        // se carguen los juegos de la 1 (como se hacia originalemente)
-        const result1 = await scrapeFromUrl(baseUrls.novedades, tab, 1);
-        allGames.push(...result1.games);
-        // se añadan los juegos de la pagina 2
-        const result2 = await scrapeFromUrl(`${baseUrls.novedades}page/2/`, tab, 2);
-        allGames.push(...result2.games);
-        // se setea la pagina carga a 2 (para que al pulsar en cargar más la siguiente sea la 3)
-        // (no necesitamos cambiar variable, solo desplazamos la url cuando page > 1)
-        return { games: allGames, hasMore: true };
-    }
-    if (tab === 'novedades' && page > 1) {
-        // desplazamos el offset para que page=2 → página 3, page=3 → página 4, etc.
-        const effectivePage = page + 1;
-        url = `${baseUrls.novedades}page/${effectivePage}/`;
-        return scrapeFromUrl(url, tab, effectivePage);
-    }
     if (tab === 'buscador' && searchQuery) {
         if (page === 1) {
             url = `https://fitgirl-repacks.site/?s=${encodeURIComponent(searchQuery)}`;
@@ -223,5 +205,16 @@ export async function getGamesList({ tab = 'novedades', page = 1, searchQuery = 
         if (page > 1 && tab !== 'todos_az') url += `page/${page}/`;
         if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
     }
+    // NOVEDADES: combinar página 1 y 2
+    if (tab === 'novedades' && page === 1) {
+        const page1 = await scrapeFromUrl(baseUrls.novedades, 'novedades', 1);
+        const page2 = await scrapeFromUrl(baseUrls.novedades + 'page/2/', 'novedades', 2);
+    
+        return {
+            games: [...page1.games, ...page2.games],
+            hasMore: page2.hasMore
+        };
+    }
+
     return scrapeFromUrl(url, tab, page);
 }
