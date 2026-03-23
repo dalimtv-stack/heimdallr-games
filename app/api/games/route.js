@@ -84,7 +84,11 @@ export async function GET(request) {
         lower.includes('ai shoujo') ||
         lower.includes('cm3d2') ||
         lower.includes('sexy beach') ||
-        lower.includes('nekopara') && lower.includes('extra') // Nekopara Extra es +18
+        lower.includes('nekopara') && lower.includes('extra') ||
+
+        // === NUEVO FILTRO ===
+        lower.includes('hypervisor') ||
+        lower.includes('hypervisor bypass')
       );
     };
 
