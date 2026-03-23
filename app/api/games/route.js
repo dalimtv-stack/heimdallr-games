@@ -16,14 +16,7 @@ export async function GET(request) {
     todos_az: 'https://fitgirl-repacks.site/all-my-repacks-a-z/',
   };
 
-  // ==================== AJUSTE DE PAGINACIÓN PARA NOVEDADES ====================
-  let realPage = page;
-  
-  // Página 1 ya carga 1+2, así que page=2 debe cargar la 3 real
-  if (tab === 'novedades' && page > 1) {
-    realPage = page + 1; // page=2 → 3, page=3 → 4, etc.
-  }
-
+  let url = base[tab] || base.novedades;
 
   // ==================== BÚSQUEDA REAL (nueva) ====================
   if (tab === 'buscador' && searchQuery) {
@@ -34,113 +27,117 @@ export async function GET(request) {
     }
   } else {
     // Resto de pestañas (tu lógica original)
+    // (ajuste de paginación solo para novedades)
+    let realPage = page;
+    if (tab === 'novedades' && page > 1) {
+      // Página 1 ya carga 1+2, así que page=2 → 3, page=3 → 4, etc.
+      realPage = page + 1;
+    }
+
     if (page > 1 && tab !== 'todos_az') url += `page/${realPage}/`;
     if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
   }
 
-  // ==================== FUNCIÓN DE FILTRADO (solo para excluir anuncios) ====================
-  const isNotAGamePost = (title, postUrl = '') => {
-    const lower = title.toLowerCase()
-      .replace(/['’‘]/g, '')    // ← Elimina comillas y apóstrofes (tanto ' como ’)
-      .replace(/[-–—]/g, ' ')   // ← Convierte todo tipo de guiones en espacio
-      .replace(/\s+/g, ' ');    // ← Normaliza espacios
-  
-    return (
-      // Anuncios y posts del sitio
-      lower.includes('call for donations') ||
-      lower.includes('11 years in service') ||
-      lower.includes('12 years in service') ||
-      lower.includes('13 years in service') ||
-      lower.includes('hdd or ssd? version') ||
-      title.includes('→') ||
-      postUrl.includes('/a-call-for-donations') ||
-      postUrl.includes('/fitgirl-repacks-11-years-in-service') ||
+  try {
+    // ==================== FUNCIÓN DE FILTRADO (solo para excluir anuncios) ====================
+    const isNotAGamePost = (title, postUrl = '') => {
+      const lower = title.toLowerCase()
+        .replace(/['’‘]/g, '')    // ← Elimina comillas y apóstrofes (tanto ' como ’)
+        .replace(/[-–—]/g, ' ')   // ← Convierte todo tipo de guiones en espacio
+        .replace(/\s+/g, ' ');    // ← Normaliza espacios
+    
+      return (
+        // Anuncios y posts del sitio
+        lower.includes('call for donations') ||
+        lower.includes('11 years in service') ||
+        lower.includes('12 years in service') ||
+        lower.includes('13 years in service') ||
+        lower.includes('hdd or ssd? version') ||
+        title.includes('→') ||
+        postUrl.includes('/a-call-for-donations') ||
+        postUrl.includes('/fitgirl-repacks-11-years-in-service') ||
+    
+        // === CONTENIDO +18 / HENTAI / EROGE (filtrado total) ===
+        lower.includes('genesis order') ||
+        lower.includes('honey select') ||
+        lower.includes('av director life') ||
+        lower.includes('one more night + windows 7 fix') ||
+        lower.includes('honeycome') ||
+        lower.includes('repack update') ||
+        lower.includes('nymphomaniac') ||
+        lower.includes('lust n dead') ||
+        lower.includes('roomgirl paradise') ||
+        lower.includes('house party: supporter') ||
+    
+        // Palabras clave genéricas de contenido adulto (muy efectivas)
+        lower.includes('hentai') ||
+        lower.includes('eroge') ||
+        lower.includes('nude') ||
+        lower.includes('sex') ||
+        lower.includes('porn') ||
+        lower.includes('lewd') ||
+        lower.includes('nsfw') ||
+        lower.includes('dojin') ||
+        lower.includes('koikatsu') ||
+        lower.includes('custom order maid') ||
+        lower.includes('honey select 2') ||
+        lower.includes('ai shoujo') ||
+        lower.includes('cm3d2') ||
+        lower.includes('sexy beach') ||
+        lower.includes('nekopara') && lower.includes('extra') // Nekopara Extra es +18
+      );
+    };
 
-      // === CONTENIDO +18 / HENTAI / EROGE (filtrado total) ===
-      lower.includes('genesis order') ||
-      lower.includes('honey select') ||
-      lower.includes('av director life') ||
-      lower.includes('one more night + windows 7 fix') ||
-      lower.includes('honeycome') ||
-      lower.includes('repack update') ||
-      lower.includes('nymphomaniac') ||
-      lower.includes('lust n dead') ||
-      lower.includes('roomgirl paradise') ||
-      lower.includes('house party: supporter') ||
+    // ==================== NOVEDADES: combinar página 1 y 2 ====================
+    if (tab === 'novedades' && page === 1) {
+      const urls = [
+        'https://fitgirl-repacks.site/',
+        'https://fitgirl-repacks.site/page/2/'
+      ];
 
-      // Palabras clave genéricas de contenido adulto (muy efectivas)
-      lower.includes('hentai') ||
-      lower.includes('eroge') ||
-      lower.includes('nude') ||
-      lower.includes('sex') ||
-      lower.includes('porn') ||
-      lower.includes('lewd') ||
-      lower.includes('nsfw') ||
-      lower.includes('dojin') ||
-      lower.includes('koikatsu') ||
-      lower.includes('custom order maid') ||
-      lower.includes('honey select 2') ||
-      lower.includes('ai shoujo') ||
-      lower.includes('cm3d2') ||
-      lower.includes('sexy beach') ||
-      lower.includes('nekopara') && lower.includes('extra') // Nekopara Extra es +18
-    );
-  };
+      const allGames = [];
 
-  // ==================== NOVEDADES: combinar página 1 y 2 ====================
-  if (tab === 'novedades' && page === 1) {
-    const urls = [
-      'https://fitgirl-repacks.site/',
-      'https://fitgirl-repacks.site/page/2/'
-    ];
+      for (const u of urls) {
+        const { data } = await axios.get(u, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          timeout: 20000,
+        });
 
-    const allGames = [];
+        const $ = cheerio.load(data);
 
-    for (const u of urls) {
-      const { data } = await axios.get(u, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        timeout: 20000,
-      });
+        $('article.post').each((_, el) => {
+          const article = $(el);
+          const link = article.find('h1.entry-title a, h2.entry-title a').first();
+          if (!link.length) return;
+          const rawTitle = link.text().trim();
+          if (/upcoming|digest/i.test(rawTitle)) return;
+          const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
+          const postUrl = link.attr('href') || '';
 
-      const $ = cheerio.load(data);
+          // ← FILTRO AQUÍ (principal para novedades)
+          if (isNotAGamePost(title, postUrl)) return;
 
-      $('article.post').each((_, el) => {
-        const article = $(el);
-        const link = article.find('h1.entry-title a, h2.entry-title a').first();
-        if (!link.length) return;
+          const id = postUrl
+            ? crypto.createHash('md5').update(postUrl).digest('hex')
+            : Date.now().toString();
+          let cover = '';
+          const img = article.find('img').first();
+          if (img.length) {
+            cover = img.attr('src') || img.attr('data-src') || img.attr('data-lazy-src') || '';
+            if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
+          }
+          if (!cover) {
+            cover = 'https://dummyimage.com/300x450/000000/ffffff.png&text=' + encodeURIComponent(title.slice(0, 15));
+          }
+          allGames.push({ id, title, cover, postUrl });
+        });
+      }
 
-        const rawTitle = link.text().trim();
-        if (/upcoming|digest/i.test(rawTitle)) return;
-
-        const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
-        const postUrl = link.attr('href') || '';
-
-        if (isNotAGamePost(title, postUrl)) return;
-
-        const id = crypto.createHash('md5').update(postUrl).digest('hex');
-
-        let cover = '';
-        const img = article.find('img').first();
-        if (img.length) {
-          cover = img.attr('src') || img.attr('data-src') || img.attr('data-lazy-src') || '';
-          if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
-        }
-
-        if (!cover) {
-          cover = 'https://dummyimage.com/300x450/000000/ffffff.png&text=' + encodeURIComponent(title.slice(0, 15));
-        }
-
-        allGames.push({ id, title, cover, postUrl });
-      });
+      // hasMore: como mínimo hay página 3
+      return NextResponse.json({ games: allGames, hasMore: true });
     }
 
-    return NextResponse.json({
-      games: allGames,
-      hasMore: true
-    });
-  }
-
-  try {
+    // ==================== RESTO DE CASOS (tu lógica original) ====================
     const { data } = await axios.get(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 20000,
