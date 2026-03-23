@@ -111,6 +111,14 @@ export async function GET(request) {
 
         $('article.post').each((_, el) => {
           const article = $(el);
+
+          // === EXCLUSIÓN POR HYPERVISOR ===
+          const articleClass = article.attr('class')?.toLowerCase() || '';
+          if (articleClass.includes('hypervisor-bypass')) return;
+
+          const metaText = article.find('.entry-meta').text().toLowerCase();
+          if (metaText.includes('hypervisor')) return;
+
           const link = article.find('h1.entry-title a, h2.entry-title a').first();
           if (!link.length) return;
           const rawTitle = link.text().trim();
@@ -221,6 +229,14 @@ export async function GET(request) {
       // NOVEDADES + BÚSQUEDA
       $('article.post').each((_, el) => {
         const article = $(el);
+
+        // === EXCLUSIÓN POR HYPERVISOR ===
+        const articleClass = article.attr('class')?.toLowerCase() || '';
+        if (articleClass.includes('hypervisor-bypass')) return;
+
+        const metaText = article.find('.entry-meta').text().toLowerCase();
+        if (metaText.includes('hypervisor')) return;
+
         const link = article.find('h1.entry-title a, h2.entry-title a').first();
         if (!link.length) return;
         const rawTitle = link.text().trim();
