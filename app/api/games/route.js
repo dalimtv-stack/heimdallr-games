@@ -16,7 +16,14 @@ export async function GET(request) {
     todos_az: 'https://fitgirl-repacks.site/all-my-repacks-a-z/',
   };
 
-  let url = base[tab] || base.novedades;
+  // ==================== AJUSTE DE PAGINACIÓN PARA NOVEDADES ====================
+  let realPage = page;
+  
+  // Página 1 ya carga 1+2, así que page=2 debe cargar la 3 real
+  if (tab === 'novedades' && page > 1) {
+    realPage = page + 1; // page=2 → 3, page=3 → 4, etc.
+  }
+
 
   // ==================== BÚSQUEDA REAL (nueva) ====================
   if (tab === 'buscador' && searchQuery) {
@@ -27,7 +34,7 @@ export async function GET(request) {
     }
   } else {
     // Resto de pestañas (tu lógica original)
-    if (page > 1 && tab !== 'todos_az') url += `page/${page}/`;
+    if (page > 1 && tab !== 'todos_az') url += `page/${realPage}/`;
     if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
   }
 
