@@ -175,6 +175,10 @@ async function scrapeFromUrl(url, tab, page) {
  * @returns {Promise<{games: object[], hasMore: boolean}>}
  */
 export async function getGamesList({ tab = 'novedades', page = 1, searchQuery = '', favorites = [] }) {
+
+    // Normalizar page
+    page = Number(page) || 1;
+
    
     // --- Lógica de Favoritos (simula el POST) ---
     if (favorites.length > 0) {
