@@ -32,12 +32,59 @@ export async function GET(request) {
   }
 
   try {
-    const { data } = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      timeout: 20000,
+  // ==================== NOVEDADES: combinar página 1 y 2 ====================
+  if (tab === 'novedades' && page === 1) {
+    const urls = [
+      'https://fitgirl-repacks.site/',
+      'https://fitgirl-repacks.site/page/2/'
+    ];
+  
+    const allGames = [];
+  
+    for (const u of urls) {
+      const { data } = await axios.get(u, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        timeout: 20000,
+      });
+  
+      const $ = cheerio.load(data);
+  
+      $('article.post').each((_, el) => {
+        const article = $(el);
+        const link = article.find('h1.entry-title a, h2.entry-title a').first();
+        if (!link.length) return;
+  
+        const rawTitle = link.text().trim();
+        if (/upcoming|digest/i.test(rawTitle)) return;
+  
+        const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
+        const postUrl = link.attr('href') || '';
+  
+        if (isNotAGamePost(title, postUrl)) return;
+  
+        const id = crypto.createHash('md5').update(postUrl).digest('hex');
+  
+        let cover = '';
+        const img = article.find('img').first();
+        if (img.length) {
+          cover = img.attr('src') || img.attr('data-src') || img.attr('data-lazy-src') || '';
+          if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
+        }
+  
+        if (!cover) {
+          cover = 'https://dummyimage.com/300x450/000000/ffffff.png&text=' + encodeURIComponent(title.slice(0, 15));
+        }
+  
+        allGames.push({ id, title, cover, postUrl });
+      });
+    }
+  
+    return NextResponse.json({
+      games: allGames,
+      hasMore: true // porque existe página 3
     });
-    const $ = cheerio.load(data);
-    const games = [];
+  }
+
 
     // ==================== FUNCIÓN DE FILTRADO (solo para excluir anuncios) ====================
     const isNotAGamePost = (title, postUrl = '') => {
