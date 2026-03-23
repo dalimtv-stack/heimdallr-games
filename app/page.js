@@ -484,7 +484,7 @@ export default function Home() {
                       Instalar en qBittorrent
                     </button>
                     {selectedDetails.torrentStatsImage && (
-                      <Image src={selectedDetails.torrentStatsImage} alt="Torrent stats" width={800} height={200} className="w-full mt-4 rounded-lg border border-gray-700" unoptimized />
+                      <Image src={selectedDetails.torrentStatsImage} alt="Torrent stats" width={800} height={200} className="w-full max-w-md mx-auto mt-4 rounded-lg border border-gray-700" unoptimized />
                     )}
                   </>
                 )}
