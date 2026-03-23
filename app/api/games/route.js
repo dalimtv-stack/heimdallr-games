@@ -31,109 +31,115 @@ export async function GET(request) {
     if (page > 1 && tab === 'todos_az') url += `?lcp_page0=${page}#lcp_instance_0`;
   }
 
-  try {
+  // ==================== FUNCIÓN DE FILTRADO (solo para excluir anuncios) ====================
+  const isNotAGamePost = (title, postUrl = '') => {
+    const lower = title.toLowerCase()
+      .replace(/['’‘]/g, '')    // ← Elimina comillas y apóstrofes (tanto ' como ’)
+      .replace(/[-–—]/g, ' ')   // ← Convierte todo tipo de guiones en espacio
+      .replace(/\s+/g, ' ');    // ← Normaliza espacios
+  
+    return (
+      // Anuncios y posts del sitio
+      lower.includes('call for donations') ||
+      lower.includes('11 years in service') ||
+      lower.includes('12 years in service') ||
+      lower.includes('13 years in service') ||
+      lower.includes('hdd or ssd? version') ||
+      title.includes('→') ||
+      postUrl.includes('/a-call-for-donations') ||
+      postUrl.includes('/fitgirl-repacks-11-years-in-service') ||
+
+      // === CONTENIDO +18 / HENTAI / EROGE (filtrado total) ===
+      lower.includes('genesis order') ||
+      lower.includes('honey select') ||
+      lower.includes('av director life') ||
+      lower.includes('one more night + windows 7 fix') ||
+      lower.includes('honeycome') ||
+      lower.includes('repack update') ||
+      lower.includes('nymphomaniac') ||
+      lower.includes('lust n dead') ||
+      lower.includes('roomgirl paradise') ||
+      lower.includes('house party: supporter') ||
+
+      // Palabras clave genéricas de contenido adulto (muy efectivas)
+      lower.includes('hentai') ||
+      lower.includes('eroge') ||
+      lower.includes('nude') ||
+      lower.includes('sex') ||
+      lower.includes('porn') ||
+      lower.includes('lewd') ||
+      lower.includes('nsfw') ||
+      lower.includes('dojin') ||
+      lower.includes('koikatsu') ||
+      lower.includes('custom order maid') ||
+      lower.includes('honey select 2') ||
+      lower.includes('ai shoujo') ||
+      lower.includes('cm3d2') ||
+      lower.includes('sexy beach') ||
+      lower.includes('nekopara') && lower.includes('extra') // Nekopara Extra es +18
+    );
+  };
+
   // ==================== NOVEDADES: combinar página 1 y 2 ====================
   if (tab === 'novedades' && page === 1) {
     const urls = [
       'https://fitgirl-repacks.site/',
       'https://fitgirl-repacks.site/page/2/'
     ];
-  
+
     const allGames = [];
-  
+
     for (const u of urls) {
       const { data } = await axios.get(u, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
         timeout: 20000,
       });
-  
+
       const $ = cheerio.load(data);
-  
+
       $('article.post').each((_, el) => {
         const article = $(el);
         const link = article.find('h1.entry-title a, h2.entry-title a').first();
         if (!link.length) return;
-  
+
         const rawTitle = link.text().trim();
         if (/upcoming|digest/i.test(rawTitle)) return;
-  
+
         const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
         const postUrl = link.attr('href') || '';
-  
+
         if (isNotAGamePost(title, postUrl)) return;
-  
+
         const id = crypto.createHash('md5').update(postUrl).digest('hex');
-  
+
         let cover = '';
         const img = article.find('img').first();
         if (img.length) {
           cover = img.attr('src') || img.attr('data-src') || img.attr('data-lazy-src') || '';
           if (cover && !cover.startsWith('http')) cover = 'https://fitgirl-repacks.site' + cover;
         }
-  
+
         if (!cover) {
           cover = 'https://dummyimage.com/300x450/000000/ffffff.png&text=' + encodeURIComponent(title.slice(0, 15));
         }
-  
+
         allGames.push({ id, title, cover, postUrl });
       });
     }
-  
+
     return NextResponse.json({
       games: allGames,
-      hasMore: true // porque existe página 3
+      hasMore: true
     });
   }
 
-
-    // ==================== FUNCIÓN DE FILTRADO (solo para excluir anuncios) ====================
-    const isNotAGamePost = (title, postUrl = '') => {
-      const lower = title.toLowerCase()
-        .replace(/['’‘]/g, '')    // ← Elimina comillas y apóstrofes (tanto ' como ’)
-        .replace(/[-–—]/g, ' ')   // ← Convierte todo tipo de guiones en espacio
-        .replace(/\s+/g, ' ');    // ← Normaliza espacios
-    
-      return (
-  	  // Anuncios y posts del sitio
-  		lower.includes('call for donations') ||
-  		lower.includes('11 years in service') ||
-  		lower.includes('12 years in service') ||
-  		lower.includes('13 years in service') ||
-  		lower.includes('hdd or ssd? version') ||
-  		title.includes('→') ||
-  		postUrl.includes('/a-call-for-donations') ||
-  		postUrl.includes('/fitgirl-repacks-11-years-in-service') ||
-  
-  		// === CONTENIDO +18 / HENTAI / EROGE (filtrado total) ===
-  		lower.includes('genesis order') ||
-  		lower.includes('honey select') ||
-  		lower.includes('av director life') ||
-  		lower.includes('one more night + windows 7 fix') ||
-  		lower.includes('honeycome') ||
-  		lower.includes('repack update') ||
-  		lower.includes('nymphomaniac') ||
-  		lower.includes('lust n dead') ||
-  		lower.includes('roomgirl paradise') ||
-  		lower.includes('house party: supporter') ||
-  
-  		// Palabras clave genéricas de contenido adulto (muy efectivas)
-  		lower.includes('hentai') ||
-  		lower.includes('eroge') ||
-  		lower.includes('nude') ||
-  		lower.includes('sex') ||
-  		lower.includes('porn') ||
-  		lower.includes('lewd') ||
-  		lower.includes('nsfw') ||
-  		lower.includes('dojin') ||
-  		lower.includes('koikatsu') ||
-  		lower.includes('custom order maid') ||
-  		lower.includes('honey select 2') ||
-  		lower.includes('ai shoujo') ||
-  		lower.includes('cm3d2') ||
-  		lower.includes('sexy beach') ||
-  		lower.includes('nekopara') && lower.includes('extra') // Nekopara Extra es +18
-      );
-    };
+  try {
+    const { data } = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      timeout: 20000,
+    });
+    const $ = cheerio.load(data);
+    const games = [];
 
     // ==================== POPULARES DEL MES ====================
     if (tab === 'populares_mes') {
