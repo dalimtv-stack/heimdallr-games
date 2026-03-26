@@ -484,7 +484,16 @@ export default function Home() {
                       Instalar en qBittorrent
                     </button>
                     {selectedDetails.torrentStatsImage && (
-                      <Image src={selectedDetails.torrentStatsImage} alt="Torrent stats" width={800} height={200} className="w-full max-w-md mx-auto mt-4 rounded-lg border border-gray-700" unoptimized />
+                      <div className="mt-6 flex justify-center">
+                        <Image
+                          src={selectedDetails.torrentStatsImage}
+                          alt="Torrent statistics / seeders count"
+                          width={500}           // ← ajusta entre 400–600 según te guste
+                          height={120}          // proporción aproximada, no es crítica con object-contain
+                          className="max-w-full h-auto rounded-lg border border-gray-700 shadow-md"
+                          unoptimized
+                        />
+                      </div>
                     )}
                   </>
                 )}
