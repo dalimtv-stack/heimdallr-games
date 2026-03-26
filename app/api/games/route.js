@@ -126,6 +126,10 @@ export async function GET(request) {
           const title = rawTitle.replace(/–\s*FitGirl Repack.*/i, '').trim();
           const postUrl = link.attr('href') || '';
 
+          const contentHtml = article.find('.entry-content').html()?.toLowerCase() || '';
+          if (contentHtml.includes('background-color:red') && contentHtml.includes('hypervisor')) return;
+
+
           // ← FILTRO AQUÍ (principal para novedades)
           if (isNotAGamePost(title, postUrl)) return;
 
