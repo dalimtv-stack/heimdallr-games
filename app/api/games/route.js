@@ -88,7 +88,8 @@ export async function GET(request) {
 
         // === NUEVO FILTRO ===
         lower.includes('hypervisor') ||
-        lower.includes('hypervisor bypass')
+        lower.includes('hypervisor bypass') ||
+        lower.includes('uncategorized')
       );
     };
 
@@ -118,6 +119,10 @@ export async function GET(request) {
 
           const metaText = article.find('.entry-meta').text().toLowerCase();
           if (metaText.includes('hypervisor')) return;
+          
+          // === EXCLUSIÓN POR Uncategorized===
+          const articleClass = article.attr('class')?.toLowerCase() || '';
+          if (articleClass.includes('uncategorized')) return;
 
           const link = article.find('h1.entry-title a, h2.entry-title a').first();
           if (!link.length) return;
