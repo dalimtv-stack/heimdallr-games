@@ -121,7 +121,6 @@ export async function GET(request) {
           if (metaText.includes('hypervisor')) return;
           
           // === EXCLUSIÓN POR Uncategorized===
-          const articleClass = article.attr('class')?.toLowerCase() || '';
           if (articleClass.includes('uncategorized')) return;
 
           const link = article.find('h1.entry-title a, h2.entry-title a').first();
@@ -247,7 +246,6 @@ export async function GET(request) {
         if (metaText.includes('hypervisor')) return;
         
         // === EXCLUSIÓN POR Uncategorized ===
-        const articleClass = article.attr('class')?.toLowerCase() || '';
         if (articleClass.includes('uncategorized')) return;
 
         const link = article.find('h1.entry-title a, h2.entry-title a').first();
